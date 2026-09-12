@@ -16,6 +16,7 @@ create table entries (
   source text not null default 'handmatig' check (source in ('handmatig', 'foto', 'beschrijving')),
   op_fysiek_bord boolean not null default false,
   photo_id uuid,
+  reminder_minutes integer default null,
   created_at timestamptz not null default now()
 );
 

@@ -108,10 +108,10 @@ function chipHtml(who) {
 
 // ── Supabase data helpers (snake_case ↔ camelCase) ──
 function rowToEntry(r) {
-  return { id: r.id, title: r.title, who: r.who, type: r.type, weekday: r.weekday, date: r.date, endDate: r.end_date, time: r.time || '', note: r.note || '', category: r.category, skipDates: r.skip_dates || [], source: r.source, opFysiekBord: r.op_fysiek_bord, photoId: r.photo_id, createdAt: r.created_at }
+  return { id: r.id, title: r.title, who: r.who, type: r.type, weekday: r.weekday, date: r.date, endDate: r.end_date, time: r.time || '', note: r.note || '', category: r.category, skipDates: r.skip_dates || [], source: r.source, opFysiekBord: r.op_fysiek_bord, photoId: r.photo_id, reminderMinutes: r.reminder_minutes, createdAt: r.created_at }
 }
 function entryToRow(e) {
-  return { title: e.title, who: e.who, type: e.type, weekday: e.weekday || null, date: e.date || null, end_date: e.endDate || null, time: e.time || '', note: e.note || '', category: e.category || null, skip_dates: e.skipDates || [], source: e.source || 'handmatig', op_fysiek_bord: e.opFysiekBord ?? false, photo_id: e.photoId || null }
+  return { title: e.title, who: e.who, type: e.type, weekday: e.weekday || null, date: e.date || null, end_date: e.endDate || null, time: e.time || '', note: e.note || '', category: e.category || null, skip_dates: e.skipDates || [], source: e.source || 'handmatig', op_fysiek_bord: e.opFysiekBord ?? false, photo_id: e.photoId || null, reminder_minutes: e.reminderMinutes ?? null }
 }
 
 // ── data loading ──
@@ -297,6 +297,19 @@ $('weekPrev').addEventListener('click', () => { state.weekOffset -= 1; renderWee
 $('weekNext').addEventListener('click', () => { state.weekOffset += 1; renderWeek() })
 $('weekToday').addEventListener('click', () => { state.weekOffset = 0; renderWeek() })
 
+// ── .ics subscribe link ──
+$('btnExportIcs').addEventListener('click', () => {
+  const url = location.origin + '/api/calendar'
+  modalBox.innerHTML = '<h3>Agenda abonneren</h3>' +
+    '<p style="word-break:break-all;font-family:var(--mono);font-size:13px;user-select:all;background:var(--surface-2);padding:8px;border-radius:6px;margin:8px 0">' + esc(url) + '</p>' +
+    '<p style="color:var(--text-muted);font-size:13px">Voeg deze URL toe als agenda-abonnement in Google Calendar, Apple Agenda of Outlook.</p>' +
+    '<div class="modal-actions" style="margin-top:12px"><button type="button" class="btn btn-primary" id="modal-copy">Kopieer link</button><button type="button" class="btn btn-ghost" id="modal-close">Sluiten</button></div>'
+  modalOverlay.hidden = false
+  $('modal-copy').addEventListener('click', () => { navigator.clipboard.writeText(url).then(() => toast('Agenda-URL gekopieerd')); modalOverlay.hidden = true })
+  $('modal-close').addEventListener('click', () => { modalOverlay.hidden = true })
+  modalOverlay.addEventListener('click', function oc(ev) { if (ev.target === modalOverlay) { modalOverlay.removeEventListener('click', oc); modalOverlay.hidden = true } })
+})
+
 // ── swipe nav (mobile) ──
 ;(function () {
   const el = $('view-week')
@@ -360,6 +373,7 @@ $('itemForm').addEventListener('submit', async (ev) => {
   const note = $('f-note').value.trim(), weekday = $('f-weekday').value
   const date = $('f-date').value, endDate = $('f-enddate').value
   const category = who === 'Algemeen' ? $('f-category').value : null
+  const reminderVal = $('f-reminder').value
   if (!title || !who) { toast('Vul in ieder geval \'wat\' en de kolom in.'); return }
   if ((state.addType === 'eenmalig' || state.addType === 'jaarlijks') && !date) { toast('Kies een datum.'); return }
   if (state.addType === 'periode' && (!date || !endDate)) { toast('Kies een begin- en einddatum.'); return }
@@ -371,7 +385,8 @@ $('itemForm').addEventListener('submit', async (ev) => {
     weekday: state.addType === 'wekelijks' ? weekday : null,
     date: (state.addType === 'eenmalig' || state.addType === 'jaarlijks' || state.addType === 'periode') ? date : null,
     end_date: (state.addType === 'wekelijks' && endDate) ? endDate : (state.addType === 'periode' ? endDate : null),
-    time: time || '', note, category, source: 'handmatig', op_fysiek_bord: false
+    time: time || '', note, category, source: 'handmatig', op_fysiek_bord: false,
+    reminder_minutes: reminderVal !== '' ? parseInt(reminderVal) : null
   }
   const { error } = await supabase.from('entries').insert(row)
   submitBtn.disabled = false
@@ -466,10 +481,38 @@ if (window.matchMedia) {
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { renderTasks(); renderWeek() })
 }
 
+// ── reminders (browser notifications) ──
+const firedReminders = new Set()
+function checkReminders() {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return
+  const now = new Date()
+  const todayStr = ymd(now), nowMinutes = now.getHours() * 60 + now.getMinutes()
+  const dName = dayNameOf(now)
+  state.entries.forEach(e => {
+    if (e.reminderMinutes == null || !e.time) return
+    if (!entryMatchesDay(e, dName, todayStr)) return
+    const [h, m] = e.time.split(':').map(Number)
+    const eventMinutes = h * 60 + m
+    const fireAt = eventMinutes - e.reminderMinutes
+    if (nowMinutes === fireAt && !firedReminders.has(e.id + todayStr)) {
+      firedReminders.add(e.id + todayStr)
+      const label = e.reminderMinutes === 0 ? 'Nu' : e.reminderMinutes < 60 ? e.reminderMinutes + ' min' : e.reminderMinutes === 60 ? '1 uur' : '1 dag'
+      new Notification('Weekplanner', { body: (label === 'Nu' ? '' : label + ': ') + e.title + ' (' + e.who + ') om ' + e.time, icon: '📋' })
+    }
+  })
+}
+function initReminders() {
+  if (!('Notification' in window)) return
+  if (Notification.permission === 'default') Notification.requestPermission()
+  setInterval(checkReminders, 60000)
+  checkReminders()
+}
+
 // ── init ──
 async function init() {
   await Promise.all([loadEntries(), loadGroceries(), loadFavorites()])
   subscribeRealtime()
   renderWeek()
+  initReminders()
 }
 init()
