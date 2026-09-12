@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>" />
+    <title>Planbord Sync</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="topbar-inner">
+          <div class="brand">
+            <span class="brand-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M3 9h18"></path><path d="M8 3v3M16 3v3"></path><path d="M7.5 13.5l2 2 3.5-3.5"></path></svg>
+            </span>
+            <div class="brand-text">
+              <h1>Planbord Sync</h1><span class="phase-badge">fase 2</span>
+            </div>
+          </div>
+        </div>
+        <nav class="tabs" role="tablist">
+          <button class="tab is-active" data-view="week" role="tab" aria-selected="true">Week</button>
+          <button class="tab" data-view="groceries" role="tab" aria-selected="false">Boodschappen</button>
+          <button class="tab" data-view="board" role="tab" aria-selected="false">Fysiek bord</button>
+        </nav>
+      </header>
+
+      <main>
+        <section class="view" id="view-week">
+          <div class="panel">
+            <div class="week-toolbar">
+              <div class="week-nav">
+                <button class="icon-btn" id="weekPrev" aria-label="Vorige week"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"></path></svg></button>
+                <div class="week-title"><strong>Week <span id="weekNum" class="mono"></span></strong><span class="week-range" id="weekRange"></span></div>
+                <button class="icon-btn" id="weekNext" aria-label="Volgende week"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></button>
+                <button class="btn btn-ghost btn-sm" id="weekToday" hidden>Vandaag</button>
+              </div>
+              <div class="week-actions">
+                <button class="btn btn-primary btn-sm" id="btnNewItem">+ Nieuw item</button>
+                <button class="btn btn-ghost btn-sm" id="btnNewDinner">+ Avondeten</button>
+                <button class="btn btn-ghost btn-sm" id="btnNewGrocery">+ Boodschap</button>
+              </div>
+            </div>
+            <div class="week-filter-note" id="weekFilterNote" hidden></div>
+
+            <div class="add-panel" id="itemPanel" hidden>
+              <div id="quickAddBox">
+                <h3>Nieuw item</h3>
+                <p class="panel-sub">Typ in eigen woorden wat je wilt toevoegen.</p>
+                <textarea id="quick-text" rows="2" placeholder="Bijv. Rick elke dinsdag tennisles 20:50 tot eind oktober"></textarea>
+                <div class="form-actions" style="margin-top:8px;">
+                  <button type="button" class="btn btn-ghost" id="quick-manual">Handmatig invullen</button>
+                  <button type="button" class="btn btn-ghost" id="quick-cancel">Annuleren</button>
+                </div>
+              </div>
+
+              <form id="itemForm" class="add-form" hidden>
+                <p class="ai-hint" id="quick-hint" hidden></p>
+                <div class="field-row-3">
+                  <div class="field"><label for="f-title">Wat</label><input type="text" id="f-title" placeholder="Bijv. Tennisles" required maxlength="80" /></div>
+                  <div class="field">
+                    <label for="f-who">Kolom</label>
+                    <select id="f-who" required>
+                      <option value="" disabled selected>Kies…</option>
+                      <option value="Siem">Siem</option>
+                      <option value="Mare">Mare</option>
+                      <option value="Merel">Merel</option>
+                      <option value="Rick">Rick</option>
+                      <option value="Algemeen">Algemeen</option>
+                    </select>
+                  </div>
+                  <div class="field"><label for="f-time">Tijd</label><input type="time" id="f-time" /></div>
+                </div>
+                <div class="field" id="categoryField" hidden>
+                  <label for="f-category">Soort (Algemeen)</label>
+                  <select id="f-category">
+                    <option value="bijzonder">Bijzonder (feestdag, verjaardag, …)</option>
+                    <option value="eten">Wat we eten</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Type</label>
+                  <div class="type-toggle" role="group" aria-label="Type afspraak">
+                    <button type="button" id="typeWeekly" class="is-active">Wekelijks</button>
+                    <button type="button" id="typeYearly">Jaarlijks</button>
+                    <button type="button" id="typeOnce">Eenmalig</button>
+                    <button type="button" id="typePeriod">Periode</button>
+                  </div>
+                </div>
+                <div class="field-row" id="weekdayRow">
+                  <div class="field" id="weekdayField">
+                    <label for="f-weekday">Dag</label>
+                    <select id="f-weekday">
+                      <option value="maandag">Maandag</option><option value="dinsdag">Dinsdag</option><option value="woensdag">Woensdag</option>
+                      <option value="donderdag">Donderdag</option><option value="vrijdag">Vrijdag</option><option value="zaterdag">Zaterdag</option><option value="zondag">Zondag</option>
+                    </select>
+                  </div>
+                  <div class="field" id="endDateField">
+                    <label for="f-enddate" id="endDateFieldLabel">Tot en met (optioneel)</label>
+                    <input type="date" id="f-enddate" />
+                  </div>
+                </div>
+                <div class="field" id="dateField" hidden>
+                  <label for="f-date" id="dateFieldLabel">Datum</label>
+                  <input type="date" id="f-date" />
+                  <p class="ai-hint" id="dateFieldHint" hidden style="margin-top:2px;">Alleen dag en maand tellen mee — dit komt jaarlijks terug.</p>
+                </div>
+                <div class="field"><label for="f-note">Notitie (optioneel)</label><textarea id="f-note" maxlength="200" placeholder="Extra info"></textarea></div>
+                <div class="form-actions">
+                  <button type="submit" class="btn btn-primary" id="f-submit">Toevoegen</button>
+                  <button type="button" class="btn btn-ghost" id="f-back">Terug</button>
+                  <button type="button" class="btn btn-ghost" id="f-cancel">Annuleren</button>
+                </div>
+              </form>
+            </div>
+
+            <div class="add-panel" id="groceryPanel" hidden>
+              <h3>Boodschap toevoegen</h3>
+              <form id="groceryQuickForm" class="grocery-quick-form">
+                <input type="text" id="gq-input" placeholder="Bijv. Melk" required maxlength="60" />
+                <button type="submit" class="btn btn-primary btn-sm">Toevoegen</button>
+                <button type="button" class="btn btn-ghost btn-sm" id="gq-cancel">Sluiten</button>
+              </form>
+            </div>
+
+            <div class="add-panel" id="dinnerPanel" hidden>
+              <h3>Avondeten toevoegen</h3>
+              <form id="dinnerQuickForm" class="add-form">
+                <div class="field-row">
+                  <div class="field"><label for="d-title">Wat eten we</label><input type="text" id="d-title" placeholder="Bijv. Pasta bolognese" required maxlength="80" /></div>
+                  <div class="field"><label for="d-date">Datum</label><input type="date" id="d-date" required /></div>
+                </div>
+                <div class="form-actions">
+                  <button type="submit" class="btn btn-primary btn-sm">Toevoegen</button>
+                  <button type="button" class="btn btn-ghost btn-sm" id="d-cancel">Sluiten</button>
+                </div>
+              </form>
+            </div>
+
+            <div class="week-table-wrap"><table class="week-table" id="weekTable"></table></div>
+            <div class="week-agenda" id="weekAgenda"></div>
+          </div>
+        </section>
+
+        <section class="view" id="view-groceries" hidden>
+          <div class="panel">
+            <div class="panel-head-row"><h2>Boodschappenlijst</h2><div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-ghost btn-sm" id="clearCheckedGroceries">Wis afgevinkte</button><button class="btn btn-danger btn-sm" id="clearGroceries">Wis lijst</button></div></div>
+            <form id="groceryForm" class="inline-add-form">
+              <input type="text" id="g-input" placeholder="Bijv. Melk" required maxlength="60" />
+              <button type="submit" class="btn btn-primary btn-sm">Toevoegen</button>
+            </form>
+            <div class="fav-row-head"><p class="panel-sub">Snel toevoegen</p><button type="button" class="btn btn-ghost btn-sm" id="btnManageFav">Beheer favorieten</button></div>
+            <div class="fav-chips" id="favChips"></div>
+            <div class="add-panel" id="favPanel" hidden>
+              <h3>Favoriete boodschappen beheren</h3>
+              <form id="favAddForm" class="inline-add-form">
+                <input type="text" id="fav-input" placeholder="Bijv. Yoghurt" required maxlength="40" />
+                <button type="submit" class="btn btn-primary btn-sm">Toevoegen</button>
+              </form>
+              <ul id="favManageList" class="check-list" style="margin-top:10px;"></ul>
+              <p id="favManageEmpty" class="empty-note" hidden>Nog geen favorieten.</p>
+              <div class="form-actions" style="margin-top:10px;"><button type="button" class="btn btn-ghost btn-sm" id="favPanelClose">Sluiten</button></div>
+            </div>
+            <ul id="groceryList" class="check-list"></ul>
+            <p id="groceryEmpty" class="empty-note" hidden>Lijst is leeg.</p>
+          </div>
+        </section>
+
+        <section class="view" id="view-board" hidden>
+          <div class="panel">
+            <div class="panel-head-row"><h2>Nog te verwerken op het fysieke bord</h2><button class="btn btn-danger btn-sm" id="clearBoard">Wis lijst</button></div>
+            <p class="panel-sub">Digitaal toegevoegd, nog niet fysiek bijgewerkt.</p>
+            <ul id="taskList" class="task-list"></ul>
+            <p id="taskEmpty" class="empty-note" hidden>Niets te doen — het bord is bij.</p>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+    <div id="snackbar" class="snackbar" role="status" aria-live="polite" hidden><span id="snackbar-msg"></span><button type="button" id="snackbar-undo">Ongedaan maken</button></div>
+    <div id="modalOverlay" class="modal-overlay" role="dialog" aria-modal="true" hidden><div class="modal-box" id="modalBox"></div></div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
