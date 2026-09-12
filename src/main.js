@@ -352,6 +352,35 @@ $('quick-manual').addEventListener('click', () => {
   $('quickAddBox').hidden = true; $('itemForm').hidden = false; focusSoon('f-title')
 })
 
+$('quick-parse').addEventListener('click', async () => {
+  const text = $('quick-text').value.trim()
+  if (!text) { toast('Typ eerst wat je wilt toevoegen.'); return }
+  const btn = $('quick-parse')
+  btn.disabled = true; btn.textContent = 'Bezig…'
+  try {
+    const resp = await fetch('/api/parse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) })
+    if (!resp.ok) throw new Error('API error')
+    const d = await resp.json()
+    $('itemForm').reset()
+    if (d.title) $('f-title').value = d.title
+    if (d.who) $('f-who').value = d.who
+    if (d.time) $('f-time').value = d.time
+    if (d.note) $('f-note').value = d.note
+    if (d.date) $('f-date').value = d.date
+    if (d.end_date) $('f-enddate').value = d.end_date
+    if (d.weekday) $('f-weekday').value = d.weekday
+    const typeMap = { wekelijks: typeWeekly, jaarlijks: typeYearly, eenmalig: typeOnce, periode: typePeriod }
+    const typeBtn = typeMap[d.type] || typeWeekly
+    typeBtn.click()
+    $('categoryField').hidden = d.who !== 'Algemeen'
+    $('quick-hint').textContent = 'AI-interpretatie van: "' + text + '" — controleer en pas aan.'
+    $('quick-hint').hidden = false
+    $('quickAddBox').hidden = true; $('itemForm').hidden = false
+  } catch (e) {
+    toast('Kon tekst niet interpreteren. Probeer handmatig.')
+  } finally { btn.disabled = false; btn.textContent = 'Interpreteer' }
+})
+
 const whoSelect = $('f-who'), categoryField = $('categoryField')
 whoSelect.addEventListener('change', () => categoryField.hidden = whoSelect.value !== 'Algemeen')
 
