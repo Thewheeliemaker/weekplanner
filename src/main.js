@@ -341,8 +341,9 @@ function resetItemPanel() {
   focusSoon('quick-text')
 }
 
-const itemPanel = $('itemPanel'), groceryPanel = $('groceryPanel'), dinnerPanel = $('dinnerPanel')
-$('btnNewItem').addEventListener('click', () => { groceryPanel.hidden = true; dinnerPanel.hidden = true; if (itemPanel.hidden) { resetItemPanel(); itemPanel.hidden = false } else itemPanel.hidden = true })
+const itemPanel = $('itemPanel'), groceryPanel = $('groceryPanel'), dinnerPanel = $('dinnerPanel'), photoPanel = $('photoPanel')
+function hideAllPanels() { itemPanel.hidden = true; groceryPanel.hidden = true; dinnerPanel.hidden = true; photoPanel.hidden = true }
+$('btnNewItem').addEventListener('click', () => { const was = itemPanel.hidden; hideAllPanels(); if (was) { resetItemPanel(); itemPanel.hidden = false } })
 $('quick-cancel').addEventListener('click', () => itemPanel.hidden = true)
 $('f-cancel').addEventListener('click', () => itemPanel.hidden = true)
 $('f-back').addEventListener('click', () => { $('itemForm').hidden = true; $('quickAddBox').hidden = false; focusSoon('quick-text') })
@@ -430,7 +431,7 @@ async function addGroceryItem(naam) {
   toast('Toegevoegd aan boodschappenlijst.'); loadGroceries()
 }
 
-$('btnNewGrocery').addEventListener('click', () => { itemPanel.hidden = true; dinnerPanel.hidden = true; groceryPanel.hidden = !groceryPanel.hidden; if (!groceryPanel.hidden) focusSoon('gq-input') })
+$('btnNewGrocery').addEventListener('click', () => { const was = groceryPanel.hidden; hideAllPanels(); groceryPanel.hidden = !was; if (!groceryPanel.hidden) focusSoon('gq-input') })
 $('gq-cancel').addEventListener('click', () => groceryPanel.hidden = true)
 $('groceryQuickForm').addEventListener('submit', ev => { ev.preventDefault(); const v = $('gq-input').value.trim(); if (!v) return; addGroceryItem(v).then(() => { $('gq-input').value = ''; groceryPanel.hidden = true }) })
 $('groceryForm').addEventListener('submit', ev => { ev.preventDefault(); const v = $('g-input').value.trim(); if (!v) return; addGroceryItem(v).then(() => { $('g-input').value = '' }) })
@@ -438,7 +439,7 @@ $('clearGroceries').addEventListener('click', () => { if (state.groceries.length
 $('clearCheckedGroceries').addEventListener('click', () => { const checked = state.groceries.filter(g => g.afgevinkt); if (checked.length === 0) { toast('Nog niets afgevinkt.'); return }; deleteManyWithUndo('boodschappen', checked, 'afgevinkte items gewist').then(loadGroceries) })
 
 // ── dinner quick add ──
-$('btnNewDinner').addEventListener('click', () => { itemPanel.hidden = true; groceryPanel.hidden = true; dinnerPanel.hidden = !dinnerPanel.hidden; if (!dinnerPanel.hidden) { if (!$('d-date').value) $('d-date').value = todayInfo().iso; focusSoon('d-title') } })
+$('btnNewDinner').addEventListener('click', () => { const was = dinnerPanel.hidden; hideAllPanels(); dinnerPanel.hidden = !was; if (!dinnerPanel.hidden) { if (!$('d-date').value) $('d-date').value = todayInfo().iso; focusSoon('d-title') } })
 $('d-cancel').addEventListener('click', () => dinnerPanel.hidden = true)
 $('dinnerQuickForm').addEventListener('submit', async (ev) => {
   ev.preventDefault()
@@ -449,6 +450,52 @@ $('dinnerQuickForm').addEventListener('submit', async (ev) => {
   btn.disabled = false
   if (error) { toast('Toevoegen mislukt.'); return }
   toast('Avondeten toegevoegd.'); $('d-title').value = ''; dinnerPanel.hidden = true; loadEntries()
+})
+
+// ── photo OCR ──
+$('btnPhoto').addEventListener('click', () => { const was = photoPanel.hidden; hideAllPanels(); photoPanel.hidden = !was })
+$('photo-cancel').addEventListener('click', () => { photoPanel.hidden = true; $('photo-input').value = ''; $('photo-preview').hidden = true; $('photo-results').hidden = true; $('photo-scan').hidden = true })
+
+$('photo-input').addEventListener('change', (ev) => {
+  const file = ev.target.files[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = () => { $('photo-img').src = reader.result; $('photo-preview').hidden = false; $('photo-scan').hidden = false; $('photo-status').textContent = '' }
+  reader.readAsDataURL(file)
+})
+
+$('photo-scan').addEventListener('click', async () => {
+  const file = $('photo-input').files[0]
+  if (!file) { toast('Kies eerst een foto.'); return }
+  const btn = $('photo-scan')
+  btn.disabled = true; btn.textContent = 'Bezig met herkennen…'; $('photo-status').textContent = 'Even geduld, AI leest de foto…'
+  try {
+    const dataUrl = $('photo-img').src
+    const [header, base64] = dataUrl.split(',')
+    const mimeType = header.match(/:(.*?);/)[1]
+    const resp = await fetch('/api/ocr', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageBase64: base64, mimeType }) })
+    if (!resp.ok) throw new Error('API error')
+    const data = await resp.json()
+    $('photo-status').textContent = data.summary || 'Klaar.'
+    const entries = data.entries || []
+    if (entries.length === 0) { $('photo-results').innerHTML = '<p class="panel-sub">Geen items gevonden op de foto.</p>'; $('photo-results').hidden = false; return }
+    $('photo-results').innerHTML = '<p class="panel-sub" style="margin-bottom:6px">Gevonden items — klik om toe te voegen:</p>' +
+      entries.map((e, i) => '<button type="button" class="btn btn-ghost btn-sm photo-add-entry" data-idx="' + i + '" style="margin:2px">' + esc(e.title) + ' (' + esc(e.who || 'Algemeen') + ')' + (e.time ? ' ' + esc(e.time) : '') + '</button>').join('')
+    $('photo-results').hidden = false
+    $('photo-results').querySelectorAll('.photo-add-entry').forEach(b => {
+      b.addEventListener('click', async () => {
+        const e = entries[parseInt(b.dataset.idx)]
+        const row = { title: e.title, who: e.who || 'Algemeen', type: e.type || 'eenmalig', weekday: e.weekday || null, date: e.date || null, end_date: e.end_date || null, time: e.time || '', note: e.note || '', category: null, source: 'foto', op_fysiek_bord: false, photo_id: data.photoId || null }
+        const { error } = await supabase.from('entries').insert(row)
+        if (error) { toast('Toevoegen mislukt.'); return }
+        b.disabled = true; b.style.opacity = '0.4'; b.textContent += ' ✓'
+        toast(e.title + ' toegevoegd.'); loadEntries()
+      })
+    })
+  } catch (e) {
+    toast('Foto kon niet worden verwerkt.')
+    $('photo-status').textContent = 'Er ging iets mis.'
+  } finally { btn.disabled = false; btn.textContent = 'Scan foto' }
 })
 
 function renderGroceries() {
