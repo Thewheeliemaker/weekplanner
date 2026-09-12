@@ -46,7 +46,6 @@ input, select, textarea { font: inherit; color: inherit; }
 .brand-mark { flex: none; width: 24px; height: 24px; border-radius: 7px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; }
 .brand-mark svg { width: 15px; height: 15px; }
 .brand-text h1 { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.01em; display: inline; }
-.phase-badge { font-size: 0.68rem; font-weight: 600; color: var(--ink-faint); white-space: nowrap; margin-left: 6px; }
 
 .tabs { display: flex; gap: 4px; margin-top: 4px; border-bottom: 1px solid var(--border); }
 .tab { border: none; background: transparent; padding: 6px 2px; margin-right: 16px; font-weight: 600; font-size: 0.86rem; color: var(--ink-soft); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }

@@ -297,6 +297,19 @@ $('weekPrev').addEventListener('click', () => { state.weekOffset -= 1; renderWee
 $('weekNext').addEventListener('click', () => { state.weekOffset += 1; renderWeek() })
 $('weekToday').addEventListener('click', () => { state.weekOffset = 0; renderWeek() })
 
+// ── swipe nav (mobile) ──
+;(function () {
+  const el = $('view-week')
+  let startX = 0, startY = 0
+  el.addEventListener('touchstart', e => { startX = e.touches[0].clientX; startY = e.touches[0].clientY }, { passive: true })
+  el.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - startX, dy = e.changedTouches[0].clientY - startY
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return
+    if (dx < 0) { state.weekOffset += 1; renderWeek() }
+    else { state.weekOffset -= 1; renderWeek() }
+  }, { passive: true })
+})()
+
 // ── tabs ──
 document.querySelectorAll('.tab').forEach(btn => {
   btn.addEventListener('click', () => {
