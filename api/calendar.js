@@ -15,8 +15,17 @@ function nextOccurrence(weekday) {
   return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
 }
 
+const TZ = 'Europe/Amsterdam'
+const VTIMEZONE = [
+  'BEGIN:VTIMEZONE', 'TZID:Europe/Amsterdam',
+  'BEGIN:STANDARD', 'DTSTART:19701025T030000', 'RRULE:FREQ=YEARLY;BYDAY=-1SU;BYMONTH=10', 'TZOFFSETFROM:+0200', 'TZOFFSETTO:+0100', 'TZNAME:CET', 'END:STANDARD',
+  'BEGIN:DAYLIGHT', 'DTSTART:19700329T020000', 'RRULE:FREQ=YEARLY;BYDAY=-1SU;BYMONTH=3', 'TZOFFSETFROM:+0100', 'TZOFFSETTO:+0200', 'TZNAME:CEST', 'END:DAYLIGHT',
+  'END:VTIMEZONE'
+].join('\r\n')
+
 function buildICS(entries) {
-  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Weekplanner//NL', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:Weekplanner', 'METHOD:PUBLISH']
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Weekplanner//NL', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:Weekplanner', 'X-WR-TIMEZONE:Europe/Amsterdam', 'METHOD:PUBLISH']
+  lines.push(VTIMEZONE)
 
   for (const e of entries) {
     lines.push('BEGIN:VEVENT')
@@ -25,17 +34,17 @@ function buildICS(entries) {
     if (e.note) lines.push('DESCRIPTION:' + icsEscape(e.note))
 
     if (e.type === 'eenmalig' && e.date) {
-      if (e.time) { lines.push('DTSTART:' + icsDate(e.date, e.time)); lines.push('DTEND:' + icsDate(e.date, addHour(e.time))) }
+      if (e.time) { lines.push('DTSTART;TZID=' + TZ + ':' + icsDate(e.date, e.time)); lines.push('DTEND;TZID=' + TZ + ':' + icsDate(e.date, addHour(e.time))) }
       else lines.push('DTSTART;VALUE=DATE:' + icsDate(e.date))
     } else if (e.type === 'wekelijks' && e.weekday) {
       const ref = nextOccurrence(e.weekday)
-      if (e.time) { lines.push('DTSTART:' + icsDate(ref, e.time)); lines.push('DTEND:' + icsDate(ref, addHour(e.time))) }
+      if (e.time) { lines.push('DTSTART;TZID=' + TZ + ':' + icsDate(ref, e.time)); lines.push('DTEND;TZID=' + TZ + ':' + icsDate(ref, addHour(e.time))) }
       else lines.push('DTSTART;VALUE=DATE:' + icsDate(ref))
       let rrule = 'RRULE:FREQ=WEEKLY;BYDAY=' + DAY_TO_RRULE[e.weekday]
-      if (e.end_date) rrule += ';UNTIL=' + icsDate(e.end_date) + 'T235959'
+      if (e.end_date) rrule += ';UNTIL=' + icsDate(e.end_date) + 'T235959Z'
       lines.push(rrule)
     } else if (e.type === 'jaarlijks' && e.date) {
-      if (e.time) { lines.push('DTSTART:' + icsDate(e.date, e.time)); lines.push('DTEND:' + icsDate(e.date, addHour(e.time))) }
+      if (e.time) { lines.push('DTSTART;TZID=' + TZ + ':' + icsDate(e.date, e.time)); lines.push('DTEND;TZID=' + TZ + ':' + icsDate(e.date, addHour(e.time))) }
       else lines.push('DTSTART;VALUE=DATE:' + icsDate(e.date))
       lines.push('RRULE:FREQ=YEARLY')
     } else if (e.type === 'periode' && e.date && e.end_date) {
