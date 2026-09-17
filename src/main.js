@@ -8,7 +8,7 @@ const DAY_ORDER = ['maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'za
 const DAY_LABELS = { maandag: 'Maandag', dinsdag: 'Dinsdag', woensdag: 'Woensdag', donderdag: 'Donderdag', vrijdag: 'Vrijdag', zaterdag: 'Zaterdag', zondag: 'Zondag' }
 const DAY_ABBR = { maandag: 'Ma', dinsdag: 'Di', woensdag: 'Wo', donderdag: 'Do', vrijdag: 'Vr', zaterdag: 'Za', zondag: 'Zo' }
 
-const state = { entries: [], groceries: [], favorites: [], addType: 'wekelijks', weekOffset: 0, filterWho: null, currentUser: null }
+const state = { entries: [], groceries: [], favorites: [], addType: 'wekelijks', weekOffset: 0, filterWho: null, currentUser: null, addForDate: null, editId: null }
 
 // ── helpers ──
 const $ = (id) => document.getElementById(id)
@@ -259,11 +259,11 @@ function renderWeek() {
         .sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'))
       const body = items.map(e => {
         const t = showTimeForDay(e, dStr)
-        return `<div class="ci" title="${esc(entryTooltip(e))}">${entryIconHtml(e, col)}<span class="ci-dot ${e.opFysiekBord ? 'on-bord' : 'pending'}" title="${e.opFysiekBord ? 'Staat op het bord' : 'Nog overzetten'}"></span>${t ? `<span class="ci-time mono">${esc(t)}</span>` : ''}<span class="ci-title">${esc(e.title)}</span><button class="ci-del" data-id="${esc(e.id)}" data-date="${esc(dStr)}" aria-label="Verwijderen">×</button></div>`
+        return `<div class="ci" data-id="${esc(e.id)}" title="${esc(entryTooltip(e))}">${entryIconHtml(e, col)}<span class="ci-dot ${e.opFysiekBord ? 'on-bord' : 'pending'}" title="${e.opFysiekBord ? 'Staat op het bord' : 'Nog overzetten'}"></span>${t ? `<span class="ci-time mono">${esc(t)}</span>` : ''}<span class="ci-title">${esc(e.title)}</span>${e.note ? '<svg class="ci-note" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>' : ''}<button class="ci-del" data-id="${esc(e.id)}" data-date="${esc(dStr)}" aria-label="Verwijderen">×</button></div>`
       }).join('')
       return '<td>' + body + '</td>'
     }).join('')
-    return `<tr class="${isToday ? 'is-today' : ''}"><td class="day-td"><div class="day-abbr">${DAY_ABBR[dName]}</div><div class="day-num mono">${shortDate(day)}</div></td>${tds}</tr>`
+    return `<tr class="${isToday ? 'is-today' : ''}"><td class="day-td"><div class="day-abbr">${DAY_ABBR[dName]}</div><div class="day-num mono">${shortDate(day)}</div><button class="day-add" data-date="${esc(dStr)}" data-dayname="${esc(dName)}" aria-label="Item toevoegen op ${DAY_LABELS[dName]}">+</button></td>${tds}</tr>`
   }).join('')
 
   const table = $('weekTable')
@@ -274,6 +274,8 @@ function renderWeek() {
     th.addEventListener('click', () => { state.filterWho = state.filterWho === th.dataset.col ? null : th.dataset.col; renderWeek() })
   })
   table.querySelectorAll('.ci-del').forEach(btn => btn.addEventListener('click', ev => { ev.stopPropagation(); handleEntryDeleteClick(btn.dataset.id, btn.dataset.date) }))
+  table.querySelectorAll('.ci[data-id]').forEach(div => div.addEventListener('click', () => openEditEntry(div.dataset.id)))
+  table.querySelectorAll('.day-add').forEach(btn => btn.addEventListener('click', () => openItemForDay(btn.dataset.date, btn.dataset.dayname)))
 
   renderWeekAgenda(days, todayStr)
 }
@@ -292,12 +294,13 @@ function renderWeekAgenda(days, todayStr) {
       ? '<li class="agenda-empty">Niets gepland</li>'
       : items.map(({ e, col }) => {
           const t = showTimeForDay(e, dStr)
-          return `<li class="agenda-item" title="${esc(entryTooltip(e))}">${entryIconHtml(e, col)}${chipHtml(col)}${t ? `<span class="agenda-time mono">${esc(t)}</span>` : ''}<span class="agenda-title">${esc(e.title)}</span><span class="ci-dot ${e.opFysiekBord ? 'on-bord' : 'pending'}"></span><button class="agenda-del" data-id="${esc(e.id)}" data-date="${esc(dStr)}" aria-label="Verwijderen">×</button></li>`
+          return `<li class="agenda-item" data-id="${esc(e.id)}" title="${esc(entryTooltip(e))}">${entryIconHtml(e, col)}${chipHtml(col)}${t ? `<span class="agenda-time mono">${esc(t)}</span>` : ''}<span class="agenda-title">${esc(e.title)}</span>${e.note ? '<svg class="ci-note" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>' : ''}<span class="ci-dot ${e.opFysiekBord ? 'on-bord' : 'pending'}"></span><button class="agenda-del" data-id="${esc(e.id)}" data-date="${esc(dStr)}" aria-label="Verwijderen">×</button></li>`
         }
         ).join('')
     return `<div class="agenda-day${isToday ? ' is-today' : ''}"><div class="agenda-day-head"><span class="agenda-day-name">${DAY_LABELS[dName]}</span><span class="agenda-day-date mono">${shortDate(day)}</span></div><ul class="agenda-items">${itemsHtml}</ul></div>`
   }).join('')
-  wrap.querySelectorAll('.agenda-del').forEach(btn => btn.addEventListener('click', () => handleEntryDeleteClick(btn.dataset.id, btn.dataset.date)))
+  wrap.querySelectorAll('.agenda-del').forEach(btn => btn.addEventListener('click', ev => { ev.stopPropagation(); handleEntryDeleteClick(btn.dataset.id, btn.dataset.date) }))
+  wrap.querySelectorAll('.agenda-item[data-id]').forEach(li => li.addEventListener('click', () => openEditEntry(li.dataset.id)))
 }
 
 // ── week nav ──
@@ -337,22 +340,68 @@ document.querySelectorAll('.tab').forEach(btn => {
 
 // ── item form ──
 function resetItemPanel() {
+  state.editId = null
   $('quick-text').value = ''
+  $('quick-text').placeholder = 'Bijv. Rick elke dinsdag tennisles 20:50 tot eind oktober'
   $('quickAddBox').hidden = false
   $('itemForm').hidden = true
   $('quick-hint').hidden = true
+  $('f-submit').textContent = 'Toevoegen'
+  $('f-back').hidden = false
   focusSoon('quick-text')
 }
 
 const itemPanel = $('itemPanel'), groceryPanel = $('groceryPanel'), dinnerPanel = $('dinnerPanel'), photoPanel = $('photoPanel')
 function hideAllPanels() { itemPanel.hidden = true; groceryPanel.hidden = true; dinnerPanel.hidden = true }
-$('btnNewItem').addEventListener('click', () => { const was = itemPanel.hidden; hideAllPanels(); if (was) { resetItemPanel(); itemPanel.hidden = false } })
+$('btnNewItem').addEventListener('click', () => { const was = itemPanel.hidden; hideAllPanels(); state.addForDate = null; state.editId = null; if (was) { resetItemPanel(); itemPanel.hidden = false } })
+
+function openItemForDay(dateStr, dayName) {
+  hideAllPanels()
+  state.addForDate = { date: dateStr, dayName }
+  resetItemPanel()
+  itemPanel.hidden = false
+  const el = $('quick-text')
+  el.placeholder = 'Item voor ' + DAY_LABELS[dayName] + '…'
+}
+function openEditEntry(id) {
+  const e = state.entries.find(x => x.id === id)
+  if (!e) return
+  state.editId = id
+  state.addForDate = null
+  hideAllPanels()
+  $('itemForm').reset()
+  $('quickAddBox').hidden = true
+  $('itemForm').hidden = false
+  $('quick-hint').hidden = true
+  $('f-title').value = e.title
+  $('f-who').value = e.who
+  $('f-time').value = e.time || ''
+  $('f-note').value = e.note || ''
+  $('categoryField').hidden = e.who !== 'Algemeen'
+  if (e.category) $('f-category').value = e.category
+  const typeMap = { wekelijks: $('typeWeekly'), jaarlijks: $('typeYearly'), eenmalig: $('typeOnce'), periode: $('typePeriod') }
+  ;(typeMap[e.type] || $('typeWeekly')).click()
+  if (e.weekday) $('f-weekday').value = e.weekday
+  if (e.date) $('f-date').value = e.date
+  if (e.endDate) $('f-enddate').value = e.endDate
+  if (e.reminderMinutes != null) $('f-reminder').value = String(e.reminderMinutes)
+  $('f-submit').textContent = 'Opslaan'
+  $('f-back').hidden = true
+  itemPanel.hidden = false
+  focusSoon('f-title')
+}
+
 $('quick-cancel').addEventListener('click', () => itemPanel.hidden = true)
 $('f-cancel').addEventListener('click', () => itemPanel.hidden = true)
 $('f-back').addEventListener('click', () => { $('itemForm').hidden = true; $('quickAddBox').hidden = false; focusSoon('quick-text') })
 $('quick-manual').addEventListener('click', () => {
   $('itemForm').reset(); $('categoryField').hidden = true; $('quick-hint').hidden = true
-  $('typeWeekly').click()
+  if (state.addForDate) {
+    $('typeOnce').click()
+    $('f-date').value = state.addForDate.date
+  } else {
+    $('typeWeekly').click()
+  }
   if (state.currentUser) { $('f-who').value = state.currentUser; $('categoryField').hidden = state.currentUser !== 'Algemeen' }
   $('quickAddBox').hidden = true; $('itemForm').hidden = false; focusSoon('f-title')
 })
@@ -363,7 +412,9 @@ $('quick-parse').addEventListener('click', async () => {
   const btn = $('quick-parse')
   btn.disabled = true; btn.textContent = 'Bezig…'
   try {
-    const resp = await fetch('/api/parse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) })
+    const parseBody = { text }
+    if (state.addForDate) parseBody.contextDate = state.addForDate.date
+    const resp = await fetch('/api/parse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(parseBody) })
     if (!resp.ok) throw new Error('API error')
     const d = await resp.json()
     $('itemForm').reset()
@@ -419,13 +470,20 @@ $('itemForm').addEventListener('submit', async (ev) => {
     weekday: state.addType === 'wekelijks' ? weekday : null,
     date: (state.addType === 'eenmalig' || state.addType === 'jaarlijks' || state.addType === 'periode') ? date : null,
     end_date: (state.addType === 'wekelijks' && endDate) ? endDate : (state.addType === 'periode' ? endDate : null),
-    time: time || '', note, category, source: 'handmatig', op_fysiek_bord: false,
+    time: time || '', note, category,
     reminder_minutes: reminderVal !== '' ? parseInt(reminderVal) : null
   }
-  const { error } = await supabase.from('entries').insert(row)
+  let error
+  if (state.editId) {
+    ({ error } = await supabase.from('entries').update(row).eq('id', state.editId))
+  } else {
+    row.source = 'handmatig'; row.op_fysiek_bord = false
+    ;({ error } = await supabase.from('entries').insert(row))
+  }
   submitBtn.disabled = false
-  if (error) { toast('Toevoegen mislukt.'); return }
-  toast('Toegevoegd.'); itemPanel.hidden = true; loadEntries()
+  if (error) { toast(state.editId ? 'Opslaan mislukt.' : 'Toevoegen mislukt.'); return }
+  toast(state.editId ? 'Opgeslagen.' : 'Toegevoegd.')
+  state.editId = null; itemPanel.hidden = true; loadEntries()
 })
 
 // ── groceries ──

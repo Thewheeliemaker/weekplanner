@@ -1,7 +1,7 @@
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
 
-  const { text } = req.body || {}
+  const { text, contextDate } = req.body || {}
   if (!text || typeof text !== 'string' || text.length > 300) return res.status(400).json({ error: 'Invalid input' })
 
   const apiKey = process.env.ANTHROPIC_API_KEY
@@ -22,7 +22,7 @@ De gebruiker typt een beschrijving van een agenda-item. Geef een JSON object ter
 - time (string|null): HH:MM 24-uurs formaat
 - note (string|null): extra informatie
 
-Regels:
+Regels:${contextDate ? `\n- De gebruiker voegt toe op datum ${contextDate}. Gebruik dit als date tenzij de tekst een andere datum noemt. Standaard type = eenmalig tenzij de tekst anders aangeeft.` : ''}
 - Als geen persoon genoemd: who = "Algemeen"
 - "elke dinsdag" → type = wekelijks, weekday = dinsdag
 - "tot eind oktober" → end_date = laatste dag van oktober dit jaar
