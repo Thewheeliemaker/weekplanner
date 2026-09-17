@@ -183,8 +183,13 @@ function entryMatchesDay(e, dName, dStr) {
   return true
 }
 
+function showTimeForDay(e, dStr) {
+  if (!e.time) return ''
+  if (e.type === 'periode' && e.date !== dStr) return ''
+  return e.time
+}
+
 function entryIconHtml(e, col) {
-  if (e.type === 'periode') return '<svg class="ci-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"></rect><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>'
   if (col === 'Algemeen' && e.category === 'eten') return '<svg class="ci-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v7a2 2 0 0 0 2 2v9M6 3v7M9 3v7M15 3c-1.5 0-2 2-2 4s.5 4 2 4v10"></path></svg>'
   if (col === 'Algemeen') return '<svg class="ci-icon" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.7 7-6.3-3.8L5.7 21l1.7-7-5.4-4.7 7.1-.6z"></path></svg>'
   return ''
@@ -252,9 +257,10 @@ function renderWeek() {
     const tds = visibleCols.map(col => {
       const items = state.entries.filter(e => e.who === col && entryMatchesDay(e, dName, dStr))
         .sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'))
-      const body = items.map(e =>
-        `<div class="ci" title="${esc(entryTooltip(e))}">${entryIconHtml(e, col)}<span class="ci-dot ${e.opFysiekBord ? 'on-bord' : 'pending'}" title="${e.opFysiekBord ? 'Staat op het bord' : 'Nog overzetten'}"></span>${e.time ? `<span class="ci-time mono">${esc(e.time)}</span>` : ''}<span class="ci-title">${esc(e.title)}</span><button class="ci-del" data-id="${esc(e.id)}" data-date="${esc(dStr)}" aria-label="Verwijderen">×</button></div>`
-      ).join('')
+      const body = items.map(e => {
+        const t = showTimeForDay(e, dStr)
+        return `<div class="ci" title="${esc(entryTooltip(e))}">${entryIconHtml(e, col)}<span class="ci-dot ${e.opFysiekBord ? 'on-bord' : 'pending'}" title="${e.opFysiekBord ? 'Staat op het bord' : 'Nog overzetten'}"></span>${t ? `<span class="ci-time mono">${esc(t)}</span>` : ''}<span class="ci-title">${esc(e.title)}</span><button class="ci-del" data-id="${esc(e.id)}" data-date="${esc(dStr)}" aria-label="Verwijderen">×</button></div>`
+      }).join('')
       return '<td>' + body + '</td>'
     }).join('')
     return `<tr class="${isToday ? 'is-today' : ''}"><td class="day-td"><div class="day-abbr">${DAY_ABBR[dName]}</div><div class="day-num mono">${shortDate(day)}</div></td>${tds}</tr>`
@@ -284,8 +290,10 @@ function renderWeekAgenda(days, todayStr) {
     items.sort((a, b) => (a.e.time || '99:99').localeCompare(b.e.time || '99:99'))
     const itemsHtml = items.length === 0
       ? '<li class="agenda-empty">Niets gepland</li>'
-      : items.map(({ e, col }) =>
-          `<li class="agenda-item" title="${esc(entryTooltip(e))}">${entryIconHtml(e, col)}${chipHtml(col)}${e.time ? `<span class="agenda-time mono">${esc(e.time)}</span>` : ''}<span class="agenda-title">${esc(e.title)}</span><span class="ci-dot ${e.opFysiekBord ? 'on-bord' : 'pending'}"></span><button class="agenda-del" data-id="${esc(e.id)}" data-date="${esc(dStr)}" aria-label="Verwijderen">×</button></li>`
+      : items.map(({ e, col }) => {
+          const t = showTimeForDay(e, dStr)
+          return `<li class="agenda-item" title="${esc(entryTooltip(e))}">${entryIconHtml(e, col)}${chipHtml(col)}${t ? `<span class="agenda-time mono">${esc(t)}</span>` : ''}<span class="agenda-title">${esc(e.title)}</span><span class="ci-dot ${e.opFysiekBord ? 'on-bord' : 'pending'}"></span><button class="agenda-del" data-id="${esc(e.id)}" data-date="${esc(dStr)}" aria-label="Verwijderen">×</button></li>`
+        }
         ).join('')
     return `<div class="agenda-day${isToday ? ' is-today' : ''}"><div class="agenda-day-head"><span class="agenda-day-name">${DAY_LABELS[dName]}</span><span class="agenda-day-date mono">${shortDate(day)}</span></div><ul class="agenda-items">${itemsHtml}</ul></div>`
   }).join('')
