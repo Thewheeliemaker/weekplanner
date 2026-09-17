@@ -415,6 +415,7 @@ $('quick-parse').addEventListener('click', async () => {
   try {
     const parseBody = { text }
     if (state.addForDate) parseBody.contextDate = state.addForDate.date
+    if (state.currentUser) parseBody.currentUser = state.currentUser
     const resp = await fetch('/api/parse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(parseBody) })
     if (!resp.ok) throw new Error('API error')
     const d = await resp.json()
