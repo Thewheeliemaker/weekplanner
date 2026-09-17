@@ -5,11 +5,19 @@ export const config = { api: { bodyParser: { sizeLimit: '5mb' } } }
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
 
+  const { imageBase64, mimeType, password } = req.body || {}
+  if (password !== process.env.APP_PASSWORD) return res.status(401).json({ error: 'Unauthorized' })
+
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) return res.status(500).json({ error: 'API key not configured' })
 
-  const { imageBase64, mimeType } = req.body || {}
   if (!imageBase64 || !mimeType) return res.status(400).json({ error: 'Missing imageBase64 or mimeType' })
+
+  const supabaseForLimit = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY)
+  const hourAgo = new Date(Date.now() - 3600000).toISOString()
+  const { count } = await supabaseForLimit.from('api_usage').select('*', { count: 'exact', head: true }).gt('created_at', hourAgo)
+  if (count >= 60) return res.status(429).json({ error: 'Rate limit: max 60 AI-verzoeken per uur' })
+  await supabaseForLimit.from('api_usage').insert({ endpoint: 'ocr' })
 
   const today = new Date().toISOString().slice(0, 10)
   const dayOfWeek = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'][new Date().getDay()]
@@ -65,7 +73,7 @@ Formaat: { "summary": "...", "entries": [...] }`
 
     const parsed = JSON.parse(jsonMatch[0])
 
-    const supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY)
+    const supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY)
     const photoId = crypto.randomUUID()
     await supabase.from('photos').insert({ id: photoId, status: 'verwerkt', ai_summary: parsed.summary || '' })
 

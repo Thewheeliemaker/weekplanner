@@ -1,11 +1,20 @@
+import { createClient } from '@supabase/supabase-js'
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
 
-  const { text, contextDate, currentUser } = req.body || {}
+  const { text, contextDate, currentUser, password } = req.body || {}
+  if (password !== process.env.APP_PASSWORD) return res.status(401).json({ error: 'Unauthorized' })
   if (!text || typeof text !== 'string' || text.length > 300) return res.status(400).json({ error: 'Invalid input' })
 
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) return res.status(500).json({ error: 'API key not configured' })
+
+  const supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY)
+  const hourAgo = new Date(Date.now() - 3600000).toISOString()
+  const { count } = await supabase.from('api_usage').select('*', { count: 'exact', head: true }).gt('created_at', hourAgo)
+  if (count >= 60) return res.status(429).json({ error: 'Rate limit: max 60 AI-verzoeken per uur' })
+  await supabase.from('api_usage').insert({ endpoint: 'parse' })
 
   const today = new Date().toISOString().slice(0, 10)
   const dayOfWeek = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'][new Date().getDay()]

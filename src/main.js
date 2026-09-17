@@ -10,6 +10,18 @@ const DAY_ABBR = { maandag: 'Ma', dinsdag: 'Di', woensdag: 'Wo', donderdag: 'Do'
 
 const state = { entries: [], groceries: [], favorites: [], addType: 'wekelijks', weekOffset: 0, filterWho: null, currentUser: null, addForDate: null, editId: null }
 
+async function dbWrite(action, table, { data, id, ids } = {}) {
+  const password = localStorage.getItem('wp-auth')
+  const resp = await fetch('/api/data', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password, action, table, data, id, ids })
+  })
+  const result = await resp.json()
+  if (!resp.ok) return { error: { message: result.error } }
+  return { data: result.data, error: null }
+}
+
 // ── helpers ──
 const $ = (id) => document.getElementById(id)
 const toastEl = $('toast')
@@ -31,11 +43,11 @@ function undoSnack(msg, onUndo) {
 }
 
 async function deleteOneWithUndo(table, id, data, label) {
-  const { error } = await supabase.from(table).delete().eq('id', id)
+  const { error } = await dbWrite('delete', table, { id })
   if (error) { toast('Verwijderen mislukt.'); return }
   undoSnack(capitalize(label) + ' verwijderd.', async () => {
     const clone = { ...data }; delete clone.id
-    const { error: e2 } = await supabase.from(table).insert(clone)
+    const { error: e2 } = await dbWrite('insert', table, { data: clone })
     if (e2) toast('Herstellen mislukt.')
   })
 }
@@ -43,11 +55,11 @@ async function deleteOneWithUndo(table, id, data, label) {
 async function deleteManyWithUndo(table, docs, label) {
   if (docs.length === 0) { toast('Niets te verwijderen.'); return }
   const ids = docs.map(d => d.id)
-  const { error } = await supabase.from(table).delete().in('id', ids)
+  const { error } = await dbWrite('delete_many', table, { ids })
   if (error) { toast('Verwijderen mislukt.'); return }
   undoSnack(docs.length + ' item(en) verwijderd (' + label + ').', async () => {
     const rows = docs.map(d => { const c = { ...d }; delete c.id; return c })
-    const { error: e2 } = await supabase.from(table).insert(rows)
+    const { error: e2 } = await dbWrite('insert', table, { data: rows })
     if (e2) toast('Herstellen mislukt.')
   })
 }
@@ -158,7 +170,7 @@ function renderTasks() {
     return `<li class="task-row"><button class="task-check" data-id="${esc(e.id)}" aria-label="Markeer als overgezet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"></path></svg></button><div class="task-body"><div class="task-title">${esc(e.title)} ${chipHtml(e.who)}</div>${when ? `<div class="task-when mono">${esc(when)}</div>` : ''}${e.note ? `<div class="task-note">${esc(e.note)}</div>` : ''}<span class="task-source">${e.source === 'handmatig' ? 'handmatig' : e.source === 'foto' ? 'via foto' : 'via beschrijving'}</span></div><button class="icon-btn task-del" data-id="${esc(e.id)}" aria-label="Verwijderen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-8 0 1 12a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1l1-12"></path></svg></button></li>`
   }).join('')
   ul.querySelectorAll('.task-check').forEach(btn => btn.addEventListener('click', async () => {
-    const { error } = await supabase.from('entries').update({ op_fysiek_bord: true }).eq('id', btn.dataset.id)
+    const { error } = await dbWrite('update', 'entries', { id: btn.dataset.id, data: { op_fysiek_bord: true } })
     if (error) toast('Kon niet bijwerken.'); else { toast('Overgezet op het bord.'); loadEntries() }
   }))
   ul.querySelectorAll('.task-del').forEach(btn => btn.addEventListener('click', () => {
@@ -215,10 +227,10 @@ async function handleEntryDeleteClick(id, dStr) {
     if (choice === 'once') {
       const prevSkip = entry.skipDates ? entry.skipDates.slice() : []
       const newSkip = prevSkip.concat([dStr])
-      const { error } = await supabase.from('entries').update({ skip_dates: newSkip }).eq('id', id)
+      const { error } = await dbWrite('update', 'entries', { id, data: { skip_dates: newSkip } })
       if (error) { toast('Aanpassen mislukt.'); return }
       undoSnack('Overgeslagen: ' + entry.title + '.', async () => {
-        await supabase.from('entries').update({ skip_dates: prevSkip }).eq('id', id)
+        await dbWrite('update', 'entries', { id, data: { skip_dates: prevSkip } })
         loadEntries()
       })
       loadEntries()
@@ -413,7 +425,7 @@ $('quick-parse').addEventListener('click', async () => {
   const btn = $('quick-parse')
   btn.disabled = true; btn.textContent = 'Bezig…'
   try {
-    const parseBody = { text }
+    const parseBody = { text, password: localStorage.getItem('wp-auth') }
     if (state.addForDate) parseBody.contextDate = state.addForDate.date
     if (state.currentUser) parseBody.currentUser = state.currentUser
     const resp = await fetch('/api/parse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(parseBody) })
@@ -498,10 +510,10 @@ $('itemForm').addEventListener('submit', async (ev) => {
   }
   let error
   if (state.editId) {
-    ({ error } = await supabase.from('entries').update(row).eq('id', state.editId))
+    ({ error } = await dbWrite('update', 'entries', { id: state.editId, data: row }))
   } else {
     row.source = 'handmatig'; row.op_fysiek_bord = false
-    ;({ error } = await supabase.from('entries').insert(row))
+    ;({ error } = await dbWrite('insert', 'entries', { data: row }))
   }
   submitBtn.disabled = false
   if (error) { toast(state.editId ? 'Opslaan mislukt.' : 'Toevoegen mislukt.'); return }
@@ -511,7 +523,7 @@ $('itemForm').addEventListener('submit', async (ev) => {
 
 // ── groceries ──
 async function addGroceryItem(naam) {
-  const { error } = await supabase.from('boodschappen').insert({ naam, afgevinkt: false })
+  const { error } = await dbWrite('insert', 'boodschappen', { data: { naam, afgevinkt: false } })
   if (error) { toast('Toevoegen mislukt.'); return }
   toast('Toegevoegd aan boodschappenlijst.'); loadGroceries()
 }
@@ -531,7 +543,7 @@ $('dinnerQuickForm').addEventListener('submit', async (ev) => {
   const title = $('d-title').value.trim(), date = $('d-date').value
   if (!title || !date) { toast('Vul in wat we eten en de datum.'); return }
   const btn = ev.target.querySelector('button[type="submit"]'); btn.disabled = true
-  const { error } = await supabase.from('entries').insert({ title, who: 'Algemeen', type: 'eenmalig', date, time: '', note: '', category: 'eten', source: 'handmatig', op_fysiek_bord: false })
+  const { error } = await dbWrite('insert', 'entries', { data: { title, who: 'Algemeen', type: 'eenmalig', date, time: '', note: '', category: 'eten', source: 'handmatig', op_fysiek_bord: false } })
   btn.disabled = false
   if (error) { toast('Toevoegen mislukt.'); return }
   toast('Avondeten toegevoegd.'); $('d-title').value = ''; dinnerPanel.hidden = true; loadEntries()
@@ -558,7 +570,7 @@ $('photo-scan').addEventListener('click', async () => {
     const dataUrl = $('photo-img').src
     const [header, base64] = dataUrl.split(',')
     const mimeType = header.match(/:(.*?);/)[1]
-    const resp = await fetch('/api/ocr', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageBase64: base64, mimeType }) })
+    const resp = await fetch('/api/ocr', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageBase64: base64, mimeType, password: localStorage.getItem('wp-auth') }) })
     if (!resp.ok) throw new Error('API error')
     const data = await resp.json()
     $('photo-status').textContent = data.summary || 'Klaar.'
@@ -571,7 +583,7 @@ $('photo-scan').addEventListener('click', async () => {
       b.addEventListener('click', async () => {
         const e = entries[parseInt(b.dataset.idx)]
         const row = { title: e.title, who: e.who || 'Algemeen', type: e.type || 'eenmalig', weekday: e.weekday || null, date: e.date || null, end_date: e.end_date || null, time: e.time || '', note: e.note || '', category: null, source: 'foto', op_fysiek_bord: false, photo_id: data.photoId || null }
-        const { error } = await supabase.from('entries').insert(row)
+        const { error } = await dbWrite('insert', 'entries', { data: row })
         if (error) { toast('Toevoegen mislukt.'); return }
         b.disabled = true; b.style.opacity = '0.4'; b.textContent += ' ✓'
         toast(e.title + ' toegevoegd.'); loadEntries()
@@ -593,7 +605,7 @@ function renderGroceries() {
   ).join('')
   ul.querySelectorAll('.grocery-check').forEach(btn => btn.addEventListener('click', async () => {
     const item = state.groceries.find(g => g.id === btn.dataset.id)
-    await supabase.from('boodschappen').update({ afgevinkt: !(item && item.afgevinkt) }).eq('id', btn.dataset.id)
+    await dbWrite('update', 'boodschappen', { id: btn.dataset.id, data: { afgevinkt: !(item && item.afgevinkt) } })
     loadGroceries()
   }))
   ul.querySelectorAll('.g-del').forEach(btn => btn.addEventListener('click', async () => {
@@ -632,7 +644,7 @@ $('favAddForm').addEventListener('submit', async (ev) => {
   ev.preventDefault()
   const v = $('fav-input').value.trim(); if (!v) return
   if (state.favorites.some(f => f.naam.toLowerCase() === v.toLowerCase())) { toast(v + ' staat al bij de favorieten.'); return }
-  const { error } = await supabase.from('favorieten').insert({ naam: v })
+  const { error } = await dbWrite('insert', 'favorieten', { data: { naam: v } })
   if (error) { toast('Toevoegen mislukt.'); return }
   $('fav-input').value = ''; toast('Favoriet toegevoegd.'); focusSoon('fav-input'); loadFavorites()
 })

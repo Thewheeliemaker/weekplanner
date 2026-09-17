@@ -60,6 +60,9 @@ function buildICS(entries) {
 }
 
 export default async function handler(req, res) {
+  const token = process.env.CALENDAR_TOKEN
+  if (token && req.query.token !== token) return res.status(403).send('Forbidden')
+
   const supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY)
   const { data, error } = await supabase.from('entries').select('*').order('created_at', { ascending: true }).limit(800)
   if (error) return res.status(500).json({ error: 'Database query failed' })
