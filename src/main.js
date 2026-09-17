@@ -297,19 +297,6 @@ $('weekPrev').addEventListener('click', () => { state.weekOffset -= 1; renderWee
 $('weekNext').addEventListener('click', () => { state.weekOffset += 1; renderWeek() })
 $('weekToday').addEventListener('click', () => { state.weekOffset = 0; renderWeek() })
 
-// ── .ics subscribe link ──
-$('btnExportIcs').addEventListener('click', () => {
-  const url = location.origin + '/api/calendar'
-  modalBox.innerHTML = '<h3>Agenda abonneren</h3>' +
-    '<p style="word-break:break-all;font-family:var(--mono);font-size:13px;user-select:all;background:var(--surface-2);padding:8px;border-radius:6px;margin:8px 0">' + esc(url) + '</p>' +
-    '<p style="color:var(--text-muted);font-size:13px">Voeg deze URL toe als agenda-abonnement in Google Calendar, Apple Agenda of Outlook.</p>' +
-    '<div class="modal-actions" style="margin-top:12px"><button type="button" class="btn btn-primary" id="modal-copy">Kopieer link</button><button type="button" class="btn btn-ghost" id="modal-close">Sluiten</button></div>'
-  modalOverlay.hidden = false
-  $('modal-copy').addEventListener('click', () => { navigator.clipboard.writeText(url).then(() => toast('Agenda-URL gekopieerd')); modalOverlay.hidden = true })
-  $('modal-close').addEventListener('click', () => { modalOverlay.hidden = true })
-  modalOverlay.addEventListener('click', function oc(ev) { if (ev.target === modalOverlay) { modalOverlay.removeEventListener('click', oc); modalOverlay.hidden = true } })
-})
-
 // ── swipe nav (mobile) ──
 ;(function () {
   const el = $('view-week')
@@ -342,7 +329,7 @@ function resetItemPanel() {
 }
 
 const itemPanel = $('itemPanel'), groceryPanel = $('groceryPanel'), dinnerPanel = $('dinnerPanel'), photoPanel = $('photoPanel')
-function hideAllPanels() { itemPanel.hidden = true; groceryPanel.hidden = true; dinnerPanel.hidden = true; photoPanel.hidden = true }
+function hideAllPanels() { itemPanel.hidden = true; groceryPanel.hidden = true; dinnerPanel.hidden = true }
 $('btnNewItem').addEventListener('click', () => { const was = itemPanel.hidden; hideAllPanels(); if (was) { resetItemPanel(); itemPanel.hidden = false } })
 $('quick-cancel').addEventListener('click', () => itemPanel.hidden = true)
 $('f-cancel').addEventListener('click', () => itemPanel.hidden = true)
@@ -453,7 +440,7 @@ $('dinnerQuickForm').addEventListener('submit', async (ev) => {
 })
 
 // ── photo OCR ──
-$('btnPhoto').addEventListener('click', () => { const was = photoPanel.hidden; hideAllPanels(); photoPanel.hidden = !was })
+$('btnPhoto').addEventListener('click', () => { photoPanel.hidden = !photoPanel.hidden })
 $('photo-cancel').addEventListener('click', () => { photoPanel.hidden = true; $('photo-input').value = ''; $('photo-preview').hidden = true; $('photo-results').hidden = true; $('photo-scan').hidden = true })
 
 $('photo-input').addEventListener('change', (ev) => {

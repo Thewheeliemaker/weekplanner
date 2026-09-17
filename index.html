@@ -25,7 +25,7 @@
         <nav class="tabs" role="tablist">
           <button class="tab is-active" data-view="week" role="tab" aria-selected="true">Week</button>
           <button class="tab" data-view="groceries" role="tab" aria-selected="false">Boodschappen</button>
-          <button class="tab" data-view="board" role="tab" aria-selected="false">Fysiek bord</button>
+          <button class="tab" data-view="board" role="tab" aria-selected="false">Sync</button>
         </nav>
       </header>
 
@@ -43,8 +43,6 @@
                 <button class="btn btn-primary btn-sm" id="btnNewItem">+ Nieuw item</button>
                 <button class="btn btn-ghost btn-sm" id="btnNewDinner">+ Avondeten</button>
                 <button class="btn btn-ghost btn-sm" id="btnNewGrocery">+ Boodschap</button>
-                <button class="btn btn-ghost btn-sm" id="btnPhoto">📷 Foto</button>
-                <button class="btn btn-ghost btn-sm" id="btnExportIcs">📅 Agenda-link</button>
               </div>
             </div>
             <div class="week-filter-note" id="weekFilterNote" hidden></div>
@@ -145,18 +143,6 @@
               </form>
             </div>
 
-            <div class="add-panel" id="photoPanel" hidden>
-              <h3>Foto herkennen</h3>
-              <p class="panel-sub">Maak een foto van het planbord of een briefje — AI leest de items eruit.</p>
-              <input type="file" id="photo-input" accept="image/*" capture="environment" style="margin-bottom:8px" />
-              <div id="photo-preview" hidden><img id="photo-img" style="max-width:100%;max-height:200px;border-radius:6px;margin-bottom:8px" /><p id="photo-status" class="panel-sub"></p></div>
-              <div id="photo-results" hidden></div>
-              <div class="form-actions" style="margin-top:8px">
-                <button type="button" class="btn btn-primary btn-sm" id="photo-scan" hidden>Scan foto</button>
-                <button type="button" class="btn btn-ghost btn-sm" id="photo-cancel">Sluiten</button>
-              </div>
-            </div>
-
             <div class="week-table-wrap"><table class="week-table" id="weekTable"></table></div>
             <div class="week-agenda" id="weekAgenda"></div>
           </div>
@@ -188,8 +174,19 @@
 
         <section class="view" id="view-board" hidden>
           <div class="panel">
-            <div class="panel-head-row"><h2>Nog te verwerken op het fysieke bord</h2><button class="btn btn-danger btn-sm" id="clearBoard">Wis lijst</button></div>
+            <div class="panel-head-row"><h2>Nog te verwerken op het fysieke bord</h2><div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-ghost btn-sm" id="btnPhoto">📷 Foto scannen</button><button class="btn btn-danger btn-sm" id="clearBoard">Wis lijst</button></div></div>
             <p class="panel-sub">Digitaal toegevoegd, nog niet fysiek bijgewerkt.</p>
+            <div class="add-panel" id="photoPanel" hidden>
+              <h3>Foto herkennen</h3>
+              <p class="panel-sub">Maak een foto van het planbord of een briefje — AI leest de items eruit.</p>
+              <input type="file" id="photo-input" accept="image/*" capture="environment" style="margin-bottom:8px" />
+              <div id="photo-preview" hidden><img id="photo-img" style="max-width:100%;max-height:200px;border-radius:6px;margin-bottom:8px" /><p id="photo-status" class="panel-sub"></p></div>
+              <div id="photo-results" hidden></div>
+              <div class="form-actions" style="margin-top:8px">
+                <button type="button" class="btn btn-primary btn-sm" id="photo-scan" hidden>Scan foto</button>
+                <button type="button" class="btn btn-ghost btn-sm" id="photo-cancel">Sluiten</button>
+              </div>
+            </div>
             <ul id="taskList" class="task-list"></ul>
             <p id="taskEmpty" class="empty-note" hidden>Niets te doen — het bord is bij.</p>
           </div>
