@@ -16,16 +16,9 @@ function nextOccurrence(weekday) {
 }
 
 const TZ = 'Europe/Amsterdam'
-const VTIMEZONE = [
-  'BEGIN:VTIMEZONE', 'TZID:Europe/Amsterdam', 'X-LIC-LOCATION:Europe/Amsterdam',
-  'BEGIN:DAYLIGHT', 'DTSTART:19700329T020000', 'RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU', 'TZOFFSETFROM:+0100', 'TZOFFSETTO:+0200', 'TZNAME:CEST', 'END:DAYLIGHT',
-  'BEGIN:STANDARD', 'DTSTART:19701025T030000', 'RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU', 'TZOFFSETFROM:+0200', 'TZOFFSETTO:+0100', 'TZNAME:CET', 'END:STANDARD',
-  'END:VTIMEZONE'
-].join('\r\n')
 
 function buildICS(entries) {
   const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Weekplanner//NL', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:Weekplanner', 'METHOD:PUBLISH']
-  lines.push(VTIMEZONE)
 
   for (const e of entries) {
     lines.push('BEGIN:VEVENT')
