@@ -373,7 +373,7 @@ $('quick-parse').addEventListener('click', async () => {
     const typeMap = { wekelijks: typeWeekly, jaarlijks: typeYearly, eenmalig: typeOnce, periode: typePeriod }
     const typeBtn = typeMap[d.type] || typeWeekly
     typeBtn.click()
-    $('categoryField').hidden = d.who !== 'Algemeen'
+    $('categoryField').hidden = true
     $('quick-hint').textContent = 'AI-interpretatie van: "' + text + '" — controleer en pas aan.'
     $('quick-hint').hidden = false
     $('quickAddBox').hidden = true; $('itemForm').hidden = false
