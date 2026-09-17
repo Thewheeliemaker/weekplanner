@@ -376,7 +376,7 @@ function openEditEntry(id) {
   $('quick-hint').hidden = true
   $('f-title').value = e.title
   $('f-who').value = e.who
-  $('f-time').value = e.time || ''
+  setTimePicker(e.time || '')
   $('f-note').value = e.note || ''
   $('categoryField').hidden = e.who !== 'Algemeen'
   if (e.category) $('f-category').value = e.category
@@ -396,7 +396,7 @@ $('quick-cancel').addEventListener('click', () => itemPanel.hidden = true)
 $('f-cancel').addEventListener('click', () => itemPanel.hidden = true)
 $('f-back').addEventListener('click', () => { $('itemForm').hidden = true; $('quickAddBox').hidden = false; focusSoon('quick-text') })
 $('quick-manual').addEventListener('click', () => {
-  $('itemForm').reset(); $('categoryField').hidden = true; $('quick-hint').hidden = true
+  $('itemForm').reset(); setTimePicker(''); $('categoryField').hidden = true; $('quick-hint').hidden = true
   if (state.addForDate) {
     $('typeOnce').click()
     $('f-date').value = state.addForDate.date
@@ -419,10 +419,10 @@ $('quick-parse').addEventListener('click', async () => {
     const resp = await fetch('/api/parse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(parseBody) })
     if (!resp.ok) throw new Error('API error')
     const d = await resp.json()
-    $('itemForm').reset()
+    $('itemForm').reset(); setTimePicker('')
     if (d.title) $('f-title').value = d.title
     if (d.who) $('f-who').value = d.who
-    if (d.time) $('f-time').value = d.time
+    if (d.time) setTimePicker(d.time)
     if (d.note) $('f-note').value = d.note
     if (d.date) $('f-date').value = d.date
     if (d.end_date) $('f-enddate').value = d.end_date
@@ -441,6 +441,15 @@ $('quick-parse').addEventListener('click', async () => {
 
 const whoSelect = $('f-who'), categoryField = $('categoryField')
 whoSelect.addEventListener('change', () => categoryField.hidden = whoSelect.value !== 'Algemeen')
+
+const p2 = n => String(n).padStart(2, '0')
+const timeH = $('f-time-h'), timeM = $('f-time-m'), timeHidden = $('f-time')
+for (let h = 0; h < 24; h++) { const o = document.createElement('option'); o.value = p2(h); o.textContent = p2(h); timeH.appendChild(o) }
+for (let m = 0; m < 60; m += 5) { const o = document.createElement('option'); o.value = p2(m); o.textContent = p2(m); timeM.appendChild(o) }
+function syncTime() { timeHidden.value = (timeH.value && timeM.value) ? timeH.value + ':' + timeM.value : '' }
+function setTimePicker(val) { if (!val) { timeH.value = ''; timeM.value = '' } else { const [h, m] = val.split(':'); timeH.value = h; const mn = Math.round(parseInt(m) / 5) * 5; timeM.value = p2(mn >= 60 ? 55 : mn) }; syncTime() }
+timeH.addEventListener('change', () => { if (timeH.value && !timeM.value) timeM.value = '00'; syncTime() })
+timeM.addEventListener('change', syncTime)
 
 const typeWeekly = $('typeWeekly'), typeYearly = $('typeYearly'), typeOnce = $('typeOnce'), typePeriod = $('typePeriod')
 const weekdayField = $('weekdayField'), weekdayRow = $('weekdayRow'), endDateField = $('endDateField')

@@ -82,6 +82,9 @@ input, select, textarea { font: inherit; color: inherit; }
 .field { display: flex; flex-direction: column; gap: 4px; }
 .field label { font-size: 0.76rem; font-weight: 600; color: var(--ink-soft); }
 .field input, .field select, .field textarea, #quick-text { border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 8px 10px; font-size: 0.88rem; width: 100%; }
+.time-picker { display: flex; align-items: center; gap: 4px; }
+.time-picker select { border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 8px 6px; font-size: 0.88rem; width: auto; flex: 1; text-align: center; }
+.time-sep { font-weight: 700; color: var(--ink-soft); font-size: 1rem; }
 .field textarea, #quick-text { resize: vertical; min-height: 46px; }
 .add-form { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
