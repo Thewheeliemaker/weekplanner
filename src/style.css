@@ -181,6 +181,39 @@ table.week-table { border-collapse: collapse; width: 100%; min-width: 620px; }
 .snackbar button:hover { background: rgba(255,255,255,0.12); }
 @media (prefers-reduced-motion: no-preference) { .snackbar { animation: toast-in .18s ease-out; } }
 
+/* ── login ── */
+.login-overlay { position: fixed; inset: 0; background: var(--bg); display: grid; place-items: center; z-index: 100; padding: 16px; }
+.login-box { text-align: center; max-width: 300px; width: 100%; }
+.login-icon { display: inline-block; color: var(--accent); margin-bottom: 8px; }
+.login-box h2 { font-size: 1.3rem; font-weight: 700; margin-bottom: 4px; }
+.login-sub { color: var(--ink-soft); font-size: 0.88rem; margin: 0 0 16px; }
+.login-members { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+.login-member { border: 2px solid var(--border); background: var(--surface); border-radius: 10px; padding: 14px 8px; font-weight: 700; font-size: 0.95rem; cursor: pointer; transition: all .15s; }
+.login-member:hover { border-color: var(--accent); background: var(--accent-soft); }
+.login-member.is-selected { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); box-shadow: 0 0 0 2px var(--accent); }
+.login-pass-row { display: flex; gap: 8px; }
+.login-pass-row input { flex: 1; border: 1px solid var(--border); background: var(--surface); border-radius: 9px; padding: 10px 12px; font-size: 0.92rem; text-align: center; }
+.login-error { color: var(--danger); font-size: 0.82rem; margin-top: 8px; }
+
+/* ── swipe animation ── */
+.week-table-wrap, .week-agenda { transition: transform .25s ease, opacity .25s ease; }
+.week-table-wrap.slide-left, .week-agenda.slide-left { transform: translateX(-40px); opacity: 0; }
+.week-table-wrap.slide-right, .week-agenda.slide-right { transform: translateX(40px); opacity: 0; }
+.swipe-hint { display: none; text-align: center; color: var(--ink-faint); font-size: 0.72rem; margin-top: 6px; padding: 4px 0; }
+.swipe-hint svg { width: 14px; height: 14px; vertical-align: -2px; }
+@media (max-width: 760px) {
+  .swipe-hint { display: block; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .week-table-wrap, .week-agenda { transition: none; }
+}
+
+/* ── form panels distinction ── */
+.add-panel { border: 2px dashed var(--accent); border-radius: var(--radius-sm); background: var(--accent-soft); padding: 16px; margin-top: 14px; }
+.add-panel h3 { color: var(--accent-ink); }
+.inline-add-form { background: var(--accent-soft); border: 1px dashed var(--accent); border-radius: var(--radius-sm); padding: 10px; margin-bottom: 14px; }
+.grocery-quick-form { background: var(--accent-soft); border: 1px dashed var(--accent); border-radius: var(--radius-sm); padding: 10px; }
+
 .modal-overlay { position: fixed; inset: 0; background: rgba(20,20,18,0.4); display: grid; place-items: center; z-index: 50; padding: 16px; }
 .modal-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow); max-width: 340px; width: 100%; }
 .modal-box h3 { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }

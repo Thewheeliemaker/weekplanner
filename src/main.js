@@ -8,7 +8,7 @@ const DAY_ORDER = ['maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'za
 const DAY_LABELS = { maandag: 'Maandag', dinsdag: 'Dinsdag', woensdag: 'Woensdag', donderdag: 'Donderdag', vrijdag: 'Vrijdag', zaterdag: 'Zaterdag', zondag: 'Zondag' }
 const DAY_ABBR = { maandag: 'Ma', dinsdag: 'Di', woensdag: 'Wo', donderdag: 'Do', vrijdag: 'Vr', zaterdag: 'Za', zondag: 'Zo' }
 
-const state = { entries: [], groceries: [], favorites: [], addType: 'wekelijks', weekOffset: 0, filterWho: null }
+const state = { entries: [], groceries: [], favorites: [], addType: 'wekelijks', weekOffset: 0, filterWho: null, currentUser: null }
 
 // ── helpers ──
 const $ = (id) => document.getElementById(id)
@@ -293,8 +293,16 @@ function renderWeekAgenda(days, todayStr) {
 }
 
 // ── week nav ──
-$('weekPrev').addEventListener('click', () => { state.weekOffset -= 1; renderWeek() })
-$('weekNext').addEventListener('click', () => { state.weekOffset += 1; renderWeek() })
+function animateWeek(direction) {
+  const wrap = $('weekTable').closest('.week-table-wrap'), agenda = $('weekAgenda')
+  const cls = direction === 'left' ? 'slide-left' : 'slide-right'
+  wrap.classList.add(cls); agenda.classList.add(cls)
+  setTimeout(() => { renderWeek(); wrap.classList.remove(cls); agenda.classList.remove(cls) }, 150)
+  const hint = $('swipeHint')
+  if (hint && !hint.hidden) { hint.hidden = true; localStorage.setItem('wp-swipe-seen', '1') }
+}
+$('weekPrev').addEventListener('click', () => { state.weekOffset -= 1; animateWeek('right') })
+$('weekNext').addEventListener('click', () => { state.weekOffset += 1; animateWeek('left') })
 $('weekToday').addEventListener('click', () => { state.weekOffset = 0; renderWeek() })
 
 // ── swipe nav (mobile) ──
@@ -305,8 +313,8 @@ $('weekToday').addEventListener('click', () => { state.weekOffset = 0; renderWee
   el.addEventListener('touchend', e => {
     const dx = e.changedTouches[0].clientX - startX, dy = e.changedTouches[0].clientY - startY
     if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return
-    if (dx < 0) { state.weekOffset += 1; renderWeek() }
-    else { state.weekOffset -= 1; renderWeek() }
+    if (dx < 0) { state.weekOffset += 1; animateWeek('left') }
+    else { state.weekOffset -= 1; animateWeek('right') }
   }, { passive: true })
 })()
 
@@ -337,6 +345,7 @@ $('f-back').addEventListener('click', () => { $('itemForm').hidden = true; $('qu
 $('quick-manual').addEventListener('click', () => {
   $('itemForm').reset(); $('categoryField').hidden = true; $('quick-hint').hidden = true
   $('typeWeekly').click()
+  if (state.currentUser) { $('f-who').value = state.currentUser; $('categoryField').hidden = state.currentUser !== 'Algemeen' }
   $('quickAddBox').hidden = true; $('itemForm').hidden = false; focusSoon('f-title')
 })
 
@@ -571,11 +580,64 @@ function initReminders() {
   checkReminders()
 }
 
+// ── login ──
+const loginOverlay = $('loginOverlay')
+let selectedMember = null
+
+document.querySelectorAll('.login-member').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.login-member').forEach(b => b.classList.remove('is-selected'))
+    btn.classList.add('is-selected')
+    selectedMember = btn.dataset.who
+    $('loginPassRow').hidden = false
+    focusSoon('loginPass')
+  })
+})
+
+function skipLogin(user) { state.currentUser = user; loginOverlay.hidden = true; init() }
+
+async function tryLogin() {
+  const pass = $('loginPass').value
+  if (!pass || !selectedMember) return
+  $('loginSubmit').disabled = true; $('loginSubmit').textContent = '…'
+  try {
+    const resp = await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pass }) })
+    const ct = resp.headers.get('content-type') || ''
+    if (!ct.includes('json')) { skipLogin(selectedMember); return }
+    if (resp.ok) {
+      localStorage.setItem('wp-auth', pass)
+      localStorage.setItem('wp-user', selectedMember)
+      skipLogin(selectedMember)
+    } else { $('loginError').hidden = false }
+  } catch { $('loginError').hidden = false }
+  $('loginSubmit').disabled = false; $('loginSubmit').textContent = 'Open'
+}
+
+$('loginSubmit').addEventListener('click', tryLogin)
+$('loginPass').addEventListener('keydown', (e) => { if (e.key === 'Enter') tryLogin() })
+
 // ── init ──
 async function init() {
   await Promise.all([loadEntries(), loadGroceries(), loadFavorites()])
   subscribeRealtime()
   renderWeek()
   initReminders()
+  if (state.currentUser) {
+    $('f-who').value = state.currentUser
+    $('categoryField').hidden = state.currentUser !== 'Algemeen'
+  }
+  const hint = $('swipeHint')
+  if (hint && localStorage.getItem('wp-swipe-seen')) hint.hidden = true
 }
-init()
+
+;(async function boot() {
+  const savedPass = localStorage.getItem('wp-auth')
+  const savedUser = localStorage.getItem('wp-user')
+  if (savedPass && savedUser) {
+    try {
+      const resp = await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: savedPass }) })
+      const ct = resp.headers.get('content-type') || ''
+      if (!ct.includes('json') || resp.ok) return skipLogin(savedUser)
+    } catch {}
+  }
+})()

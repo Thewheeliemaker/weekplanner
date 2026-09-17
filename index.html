@@ -145,6 +145,7 @@
 
             <div class="week-table-wrap"><table class="week-table" id="weekTable"></table></div>
             <div class="week-agenda" id="weekAgenda"></div>
+            <div class="swipe-hint" id="swipeHint">← swipe voor andere week →</div>
           </div>
         </section>
 
@@ -192,6 +193,25 @@
           </div>
         </section>
       </main>
+    </div>
+
+    <div id="loginOverlay" class="login-overlay">
+      <div class="login-box">
+        <span class="login-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="40" height="40"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M3 9h18"></path><path d="M8 3v3M16 3v3"></path><path d="M7.5 13.5l2 2 3.5-3.5"></path></svg></span>
+        <h2>Weekplanner</h2>
+        <p class="login-sub">Wie ben je?</p>
+        <div class="login-members" id="loginMembers">
+          <button type="button" class="login-member" data-who="Siem">Siem</button>
+          <button type="button" class="login-member" data-who="Mare">Mare</button>
+          <button type="button" class="login-member" data-who="Merel">Merel</button>
+          <button type="button" class="login-member" data-who="Rick">Rick</button>
+        </div>
+        <div class="login-pass-row" id="loginPassRow" hidden>
+          <input type="password" id="loginPass" placeholder="Wachtwoord" autocomplete="current-password" />
+          <button type="button" class="btn btn-primary" id="loginSubmit">Open</button>
+        </div>
+        <p class="login-error" id="loginError" hidden>Verkeerd wachtwoord</p>
+      </div>
     </div>
 
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
