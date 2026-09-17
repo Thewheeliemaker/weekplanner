@@ -24,7 +24,7 @@ const VTIMEZONE = [
 ].join('\r\n')
 
 function buildICS(entries) {
-  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Weekplanner//NL', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:Weekplanner', 'X-WR-TIMEZONE:Europe/Amsterdam', 'METHOD:PUBLISH']
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Weekplanner//NL', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:Weekplanner', 'METHOD:PUBLISH']
   lines.push(VTIMEZONE)
 
   for (const e of entries) {
