@@ -172,6 +172,9 @@ $('clearBoard').addEventListener('click', () => {
   deleteManyWithUndo('entries', pending.map(e => ({ id: e.id, ...entryToRow(e) })), 'takenlijst gewist').then(loadEntries)
 })
 
+function whoList(e) { return e.who ? e.who.split(',').map(s => s.trim()) : [] }
+function entryHasWho(e, col) { return whoList(e).includes(col) }
+
 // ── week table ──
 function entryMatchesDay(e, dName, dStr) {
   if (e.skipDates && e.skipDates.indexOf(dStr) >= 0) return false
@@ -255,7 +258,7 @@ function renderWeek() {
   const rows = days.map(day => {
     const dName = dayNameOf(day), dStr = ymd(day), isToday = dStr === todayStr
     const tds = visibleCols.map(col => {
-      const items = state.entries.filter(e => e.who === col && entryMatchesDay(e, dName, dStr))
+      const items = state.entries.filter(e => entryHasWho(e, col) && entryMatchesDay(e, dName, dStr))
         .sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'))
       const body = items.map(e => {
         const t = showTimeForDay(e, dStr)
@@ -284,19 +287,16 @@ function renderWeekAgenda(days, todayStr) {
   const wrap = $('weekAgenda'); if (!wrap) return
   wrap.innerHTML = days.map(day => {
     const dName = dayNameOf(day), dStr = ymd(day), isToday = dStr === todayStr
-    const items = []
-    COLUMNS.forEach(col => {
-      state.entries.filter(e => e.who === col && entryMatchesDay(e, dName, dStr))
-        .forEach(e => items.push({ e, col }))
-    })
-    items.sort((a, b) => (a.e.time || '99:99').localeCompare(b.e.time || '99:99'))
+    const items = state.entries.filter(e => entryMatchesDay(e, dName, dStr))
+      .sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'))
     const itemsHtml = items.length === 0
       ? '<li class="agenda-empty">Niets gepland</li>'
-      : items.map(({ e, col }) => {
+      : items.map(e => {
           const t = showTimeForDay(e, dStr)
-          return `<li class="agenda-item" data-id="${esc(e.id)}" title="${esc(entryTooltip(e))}">${entryIconHtml(e, col)}${chipHtml(col)}${t ? `<span class="agenda-time mono">${esc(t)}</span>` : ''}<span class="agenda-title">${esc(e.title)}</span>${e.note ? '<svg class="ci-note" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>' : ''}<span class="ci-dot ${e.opFysiekBord ? 'on-bord' : 'pending'}"></span><button class="agenda-del" data-id="${esc(e.id)}" data-date="${esc(dStr)}" aria-label="Verwijderen">×</button></li>`
-        }
-        ).join('')
+          const names = whoList(e)
+          const chips = names.map(n => chipHtml(n)).join('')
+          return `<li class="agenda-item" data-id="${esc(e.id)}" title="${esc(entryTooltip(e))}">${entryIconHtml(e, names[0])}${chips}${t ? `<span class="agenda-time mono">${esc(t)}</span>` : ''}<span class="agenda-title">${esc(e.title)}</span>${e.note ? '<svg class="ci-note" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>' : ''}<span class="ci-dot ${e.opFysiekBord ? 'on-bord' : 'pending'}"></span><button class="agenda-del" data-id="${esc(e.id)}" data-date="${esc(dStr)}" aria-label="Verwijderen">×</button></li>`
+        }).join('')
     return `<div class="agenda-day${isToday ? ' is-today' : ''}"><div class="agenda-day-head"><span class="agenda-day-name">${DAY_LABELS[dName]}</span><span class="agenda-day-date mono">${shortDate(day)}</span><button class="agenda-day-add" data-date="${esc(dStr)}" data-dayname="${esc(dName)}" aria-label="Item toevoegen">+</button></div><ul class="agenda-items">${itemsHtml}</ul></div>`
   }).join('')
   wrap.querySelectorAll('.agenda-del').forEach(btn => btn.addEventListener('click', ev => { ev.stopPropagation(); handleEntryDeleteClick(btn.dataset.id, btn.dataset.date) }))
@@ -375,7 +375,7 @@ function openEditEntry(id) {
   $('itemForm').hidden = false
   $('quick-hint').hidden = true
   $('f-title').value = e.title
-  $('f-who').value = e.who
+  setWho(e.who)
   setTimePicker(e.time || '')
   $('f-note').value = e.note || ''
   $('categoryField').hidden = e.who !== 'Algemeen'
@@ -403,7 +403,7 @@ $('quick-manual').addEventListener('click', () => {
   } else {
     $('typeWeekly').click()
   }
-  if (state.currentUser) { $('f-who').value = state.currentUser; $('categoryField').hidden = state.currentUser !== 'Algemeen' }
+  if (state.currentUser) setWho(state.currentUser)
   $('quickAddBox').hidden = true; $('itemForm').hidden = false; focusSoon('f-title')
 })
 
@@ -421,7 +421,7 @@ $('quick-parse').addEventListener('click', async () => {
     const d = await resp.json()
     $('itemForm').reset(); setTimePicker('')
     if (d.title) $('f-title').value = d.title
-    if (d.who) $('f-who').value = d.who
+    if (d.who) setWho(d.who)
     if (d.time) setTimePicker(d.time)
     if (d.note) $('f-note').value = d.note
     if (d.date) $('f-date').value = d.date
@@ -439,8 +439,20 @@ $('quick-parse').addEventListener('click', async () => {
   } finally { btn.disabled = false; btn.textContent = 'Interpreteer' }
 })
 
-const whoSelect = $('f-who'), categoryField = $('categoryField')
-whoSelect.addEventListener('change', () => categoryField.hidden = whoSelect.value !== 'Algemeen')
+const whoHidden = $('f-who'), categoryField = $('categoryField'), whoTags = $('f-who-tags')
+const selectedWho = new Set()
+function syncWho() {
+  whoHidden.value = [...selectedWho].join(',')
+  whoTags.querySelectorAll('.who-tag').forEach(b => b.classList.toggle('is-active', selectedWho.has(b.dataset.who)))
+  categoryField.hidden = !selectedWho.has('Algemeen') || selectedWho.size > 1
+}
+function setWho(names) { selectedWho.clear(); (Array.isArray(names) ? names : names.split(',')).filter(Boolean).forEach(n => selectedWho.add(n.trim())); syncWho() }
+whoTags.addEventListener('click', e => {
+  const tag = e.target.closest('.who-tag'); if (!tag) return
+  const name = tag.dataset.who
+  if (selectedWho.has(name)) selectedWho.delete(name); else selectedWho.add(name)
+  syncWho()
+})
 
 const p2 = n => String(n).padStart(2, '0')
 const timeH = $('f-time-h'), timeM = $('f-time-m'), timeHidden = $('f-time')
@@ -465,12 +477,12 @@ typePeriod.addEventListener('click', () => { state.addType = 'periode'; setTypeB
 
 $('itemForm').addEventListener('submit', async (ev) => {
   ev.preventDefault()
-  const title = $('f-title').value.trim(), who = whoSelect.value, time = $('f-time').value
+  const title = $('f-title').value.trim(), who = whoHidden.value, time = $('f-time').value
   const note = $('f-note').value.trim(), weekday = $('f-weekday').value
   const date = $('f-date').value, endDate = $('f-enddate').value
-  const category = who === 'Algemeen' ? $('f-category').value : null
+  const category = selectedWho.has('Algemeen') && selectedWho.size === 1 ? $('f-category').value : null
   const reminderVal = $('f-reminder').value
-  if (!title || !who) { toast('Vul in ieder geval \'wat\' en de kolom in.'); return }
+  if (!title || !who) { toast('Vul in ieder geval \'wat\' en wie in.'); return }
   if ((state.addType === 'eenmalig' || state.addType === 'jaarlijks') && !date) { toast('Kies een datum.'); return }
   if (state.addType === 'periode' && (!date || !endDate)) { toast('Kies een begin- en einddatum.'); return }
   if (state.addType === 'periode' && date > endDate) { toast('De einddatum ligt voor de begindatum.'); return }
@@ -700,8 +712,7 @@ async function init() {
   renderWeek()
   initReminders()
   if (state.currentUser) {
-    $('f-who').value = state.currentUser
-    $('categoryField').hidden = state.currentUser !== 'Algemeen'
+    setWho(state.currentUser)
   }
   const hint = $('swipeHint')
   if (hint && localStorage.getItem('wp-swipe-seen')) hint.hidden = true

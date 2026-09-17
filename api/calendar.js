@@ -30,7 +30,7 @@ function buildICS(entries) {
   for (const e of entries) {
     lines.push('BEGIN:VEVENT')
     lines.push('UID:' + e.id + '@weekplanner')
-    lines.push('SUMMARY:' + icsEscape(e.title + ' (' + e.who + ')'))
+    lines.push('SUMMARY:' + icsEscape(e.title + ' (' + (e.who || '').split(',').join(' & ') + ')'))
     if (e.note) lines.push('DESCRIPTION:' + icsEscape(e.note))
 
     if (e.type === 'eenmalig' && e.date) {

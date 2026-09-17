@@ -3,7 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>" />
+    <link rel="icon" href="/icon-192.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#1f6f6b" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Weekplanner" />
     <title>Weekplanner</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -64,15 +70,15 @@
                 <div class="field-row-3">
                   <div class="field"><label for="f-title">Wat</label><input type="text" id="f-title" placeholder="Bijv. Tennisles" required maxlength="80" /></div>
                   <div class="field">
-                    <label for="f-who">Kolom</label>
-                    <select id="f-who" required>
-                      <option value="" disabled selected>Kies…</option>
-                      <option value="Siem">Siem</option>
-                      <option value="Mare">Mare</option>
-                      <option value="Merel">Merel</option>
-                      <option value="Rick">Rick</option>
-                      <option value="Algemeen">Algemeen</option>
-                    </select>
+                    <label>Wie</label>
+                    <div class="who-tags" id="f-who-tags">
+                      <button type="button" class="who-tag" data-who="Siem">Siem</button>
+                      <button type="button" class="who-tag" data-who="Mare">Mare</button>
+                      <button type="button" class="who-tag" data-who="Merel">Merel</button>
+                      <button type="button" class="who-tag" data-who="Rick">Rick</button>
+                      <button type="button" class="who-tag" data-who="Algemeen">Algemeen</button>
+                    </div>
+                    <input type="hidden" id="f-who" />
                   </div>
                   <div class="field"><label for="f-time">Tijd</label><div class="time-picker" id="f-time-wrap"><select id="f-time-h"><option value="">--</option></select><span class="time-sep">:</span><select id="f-time-m"><option value="">--</option></select></div><input type="hidden" id="f-time" /></div>
                 </div>

@@ -1,0 +1,12 @@
+{
+  "name": "Weekplanner",
+  "short_name": "Weekplanner",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f4ef",
+  "theme_color": "#1f6f6b",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-192.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

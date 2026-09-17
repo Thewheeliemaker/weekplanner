@@ -85,6 +85,10 @@ input, select, textarea { font: inherit; color: inherit; }
 .time-picker { display: flex; align-items: center; gap: 4px; }
 .time-picker select { border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 8px 6px; font-size: 0.88rem; width: auto; flex: 1; text-align: center; }
 .time-sep { font-weight: 700; color: var(--ink-soft); font-size: 1rem; }
+.who-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.who-tag { border: 1.5px solid var(--border); background: var(--surface); border-radius: 999px; padding: 5px 14px; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.12s; }
+.who-tag:hover { border-color: var(--accent); }
+.who-tag.is-active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .field textarea, #quick-text { resize: vertical; min-height: 46px; }
 .add-form { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
