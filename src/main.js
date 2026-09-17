@@ -678,12 +678,13 @@ document.querySelectorAll('.login-member').forEach(btn => {
     document.querySelectorAll('.login-member').forEach(b => b.classList.remove('is-selected'))
     btn.classList.add('is-selected')
     selectedMember = btn.dataset.who
+    document.documentElement.dataset.user = selectedMember
     $('loginPassRow').hidden = false
     focusSoon('loginPass')
   })
 })
 
-function skipLogin(user) { state.currentUser = user; loginOverlay.hidden = true; init() }
+function skipLogin(user) { state.currentUser = user; document.documentElement.dataset.user = user; loginOverlay.hidden = true; init() }
 
 async function tryLogin() {
   const pass = $('loginPass').value

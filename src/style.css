@@ -10,6 +10,9 @@
   --shadow: 0 1px 2px rgba(35,38,42,0.06), 0 8px 24px -12px rgba(35,38,42,0.18);
   --radius: 14px; --radius-sm: 9px; --focus: #1f6f6b;
 }
+:root[data-user="Mare"] { --accent: #c44d7e; --accent-ink: #7a2a4d; --accent-soft: #f5e0ea; --focus: #c44d7e; }
+:root[data-user="Merel"] { --accent: #b38a1d; --accent-ink: #6d5412; --accent-soft: #f5eed5; --focus: #b38a1d; }
+:root[data-user="Siem"] { --accent: #3a72b5; --accent-ink: #1e4470; --accent-soft: #dfe9f5; --focus: #3a72b5; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #17191b; --surface: #212426; --surface-2: #2a2d2f; --border: #383c3e;
@@ -19,6 +22,9 @@
     --danger: #e08672; --danger-soft: #3c2420;
     --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5); --focus: #7bd8d1;
   }
+  :root[data-user="Mare"]:not([data-theme="light"]) { --accent: #e87aa8; --accent-ink: #fce0ed; --accent-soft: #3a1c2a; --focus: #e87aa8; }
+  :root[data-user="Merel"]:not([data-theme="light"]) { --accent: #e0b94e; --accent-ink: #faf0d0; --accent-soft: #33291a; --focus: #e0b94e; }
+  :root[data-user="Siem"]:not([data-theme="light"]) { --accent: #6ba3e0; --accent-ink: #d6e8f8; --accent-soft: #1a2a3a; --focus: #6ba3e0; }
 }
 :root[data-theme="dark"] {
   --bg: #17191b; --surface: #212426; --surface-2: #2a2d2f; --border: #383c3e;
@@ -28,6 +34,9 @@
   --danger: #e08672; --danger-soft: #3c2420;
   --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5); --focus: #7bd8d1;
 }
+:root[data-theme="dark"][data-user="Mare"] { --accent: #e87aa8; --accent-ink: #fce0ed; --accent-soft: #3a1c2a; --focus: #e87aa8; }
+:root[data-theme="dark"][data-user="Merel"] { --accent: #e0b94e; --accent-ink: #faf0d0; --accent-soft: #33291a; --focus: #e0b94e; }
+:root[data-theme="dark"][data-user="Siem"] { --accent: #6ba3e0; --accent-ink: #d6e8f8; --accent-soft: #1a2a3a; --focus: #6ba3e0; }
 
 * { box-sizing: border-box; }
 body { background: var(--bg); color: var(--ink); font-family: 'Public Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 0 14px 20px; font-size: 15px; line-height: 1.5; margin: 0; }
@@ -208,6 +217,10 @@ table.week-table { border-collapse: collapse; width: 100%; min-width: 620px; }
 .login-member { border: 2px solid var(--border); background: var(--surface); border-radius: 10px; padding: 14px 8px; font-weight: 700; font-size: 0.95rem; cursor: pointer; transition: all .15s; }
 .login-member:hover { border-color: var(--accent); background: var(--accent-soft); }
 .login-member.is-selected { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); box-shadow: 0 0 0 2px var(--accent); }
+.login-member[data-who="Siem"] { --accent: #3a72b5; --accent-ink: #1e4470; --accent-soft: #dfe9f5; }
+.login-member[data-who="Mare"] { --accent: #c44d7e; --accent-ink: #7a2a4d; --accent-soft: #f5e0ea; }
+.login-member[data-who="Merel"] { --accent: #b38a1d; --accent-ink: #6d5412; --accent-soft: #f5eed5; }
+.login-member[data-who="Rick"] { --accent: #1f6f6b; --accent-ink: #0f4644; --accent-soft: #e2f0ee; }
 .login-pass-row { display: flex; gap: 8px; }
 .login-pass-row input { flex: 1; border: 1px solid var(--border); background: var(--surface); border-radius: 9px; padding: 10px 12px; font-size: 0.92rem; text-align: center; }
 .login-error { color: var(--danger); font-size: 0.82rem; margin-top: 8px; }
