@@ -191,7 +191,7 @@ function showTimeForDay(e, dStr) {
 
 function entryIconHtml(e, col) {
   if (col === 'Algemeen' && e.category === 'eten') return '<svg class="ci-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v7a2 2 0 0 0 2 2v9M6 3v7M9 3v7M15 3c-1.5 0-2 2-2 4s.5 4 2 4v10"></path></svg>'
-  if (col === 'Algemeen') return '<svg class="ci-icon" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.7 7-6.3-3.8L5.7 21l1.7-7-5.4-4.7 7.1-.6z"></path></svg>'
+  if (col === 'Algemeen') return ''
   return ''
 }
 function entryTooltip(e) {
