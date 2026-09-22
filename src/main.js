@@ -147,12 +147,26 @@ async function loadFavorites() {
 }
 
 // ── realtime subscriptions ──
+const notifyBannerEl = $('notifyBanner'), notifyTextEl = $('notifyText'), notifyCloseEl = $('notifyClose')
+let notifyTimer = null
+function showInAppNotify(msg) {
+  notifyTextEl.textContent = msg
+  notifyBannerEl.hidden = false
+  clearTimeout(notifyTimer)
+  notifyTimer = setTimeout(() => { notifyBannerEl.hidden = true }, 6000)
+  try { navigator.vibrate?.(200) } catch {}
+}
+if (notifyCloseEl) notifyCloseEl.addEventListener('click', () => { notifyBannerEl.hidden = true; clearTimeout(notifyTimer) })
+
 function notifyMerelNewEntry(row) {
   if (state.currentUser !== 'Merel') return
-  if (!('Notification' in window) || Notification.permission !== 'granted') return
   const title = row.title || 'Nieuw item'
   const who = row.who || ''
-  new Notification('Weekplanner', { body: title + (who && who !== 'Algemeen' ? ' (' + who + ')' : ''), icon: '/icon-192.png' })
+  const msg = title + (who && who !== 'Algemeen' ? ' (' + who + ')' : '')
+  showInAppNotify('Nieuw op het bord: ' + msg)
+  if ('Notification' in window && Notification.permission === 'granted') {
+    try { new Notification('Weekplanner', { body: msg, icon: '/icon-192.png' }) } catch {}
+  }
 }
 
 function subscribeRealtime() {
