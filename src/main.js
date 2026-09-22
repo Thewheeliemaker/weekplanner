@@ -15,7 +15,7 @@ async function dbWrite(action, table, { data, id, ids } = {}) {
   const resp = await fetch('/api/data', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password, action, table, data, id, ids })
+    body: JSON.stringify({ password, action, table, data, id, ids, currentUser: state.currentUser })
   })
   const result = await resp.json()
   if (!resp.ok) return { error: { message: result.error } }
@@ -158,20 +158,17 @@ function showInAppNotify(msg) {
 }
 if (notifyCloseEl) notifyCloseEl.addEventListener('click', () => { notifyBannerEl.hidden = true; clearTimeout(notifyTimer) })
 
-function notifyMerelNewEntry(row) {
-  if (state.currentUser !== 'Merel') return
+function notifyNewEntry(row) {
+  if (!PUSH_USERS.includes(state.currentUser)) return
   const title = row.title || 'Nieuw item'
   const who = row.who || ''
   const msg = title + (who && who !== 'Algemeen' ? ' (' + who + ')' : '')
   showInAppNotify('Nieuw op het bord: ' + msg)
-  if ('Notification' in window && Notification.permission === 'granted') {
-    try { new Notification('Weekplanner', { body: msg, icon: '/icon-192.png' }) } catch {}
-  }
 }
 
 function subscribeRealtime() {
   supabase.channel('planbord')
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'entries' }, (payload) => { notifyMerelNewEntry(payload.new); loadEntries() })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'entries' }, (payload) => { notifyNewEntry(payload.new); loadEntries() })
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'entries' }, () => loadEntries())
     .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'entries' }, () => loadEntries())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'boodschappen' }, () => loadGroceries())
@@ -762,8 +759,10 @@ $('loginPass').addEventListener('keydown', (e) => { if (e.key === 'Enter') tryLo
 // ── push subscription ──
 const pushPromptEl = $('pushPrompt'), pushEnableBtn = $('pushEnable'), pushDismissBtn = $('pushDismiss')
 
+const PUSH_USERS = ['Merel', 'Rick']
+
 function showPushPrompt() {
-  if (state.currentUser !== 'Merel') return
+  if (!PUSH_USERS.includes(state.currentUser)) return
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
   if (Notification.permission === 'granted') { doSubscribePush(); return }
   if (Notification.permission === 'denied') return
@@ -785,7 +784,7 @@ async function doSubscribePush() {
     const resp = await fetch('/api/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password, subscription: sub.toJSON(), user: 'Merel' })
+      body: JSON.stringify({ password, subscription: sub.toJSON(), user: state.currentUser })
     })
     if (resp.ok) toast('Push-notificaties actief.')
     else { const err = await resp.json().catch(() => ({})); toast('Push-registratie mislukt: ' + (err.error || resp.status)) }

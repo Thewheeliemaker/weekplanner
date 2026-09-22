@@ -3,22 +3,25 @@ import webpush from 'web-push'
 
 const ALLOWED_TABLES = ['entries', 'boodschappen', 'favorieten', 'photos']
 
-async function sendPushToMerel(supabase, entry) {
+async function sendPushNotifications(supabase, entry, excludeUser) {
   const vapidPublic = process.env.VITE_VAPID_PUBLIC_KEY
   const vapidPrivate = process.env.VAPID_PRIVATE_KEY
   if (!vapidPublic || !vapidPrivate) return
 
   webpush.setVapidDetails('mailto:weekplanner@example.com', vapidPublic, vapidPrivate)
 
-  const { data: subs } = await supabase.from('push_subscriptions').select('*').eq('user_name', 'Merel')
+  const { data: subs } = await supabase.from('push_subscriptions').select('*')
   if (!subs || subs.length === 0) return
+
+  const filtered = excludeUser ? subs.filter(s => s.user_name !== excludeUser) : subs
+  if (filtered.length === 0) return
 
   const title = entry.title || 'Nieuw item'
   const who = entry.who || ''
   const body = title + (who && who !== 'Algemeen' ? ' (' + who + ')' : '')
   const payload = JSON.stringify({ title: 'Weekplanner', body: 'Nieuw: ' + body })
 
-  for (const sub of subs) {
+  for (const sub of filtered) {
     try {
       await webpush.sendNotification(JSON.parse(sub.subscription), payload)
     } catch (err) {
@@ -32,7 +35,7 @@ async function sendPushToMerel(supabase, entry) {
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
 
-  const { password, action, table, data, id, ids } = req.body || {}
+  const { password, action, table, data, id, ids, currentUser } = req.body || {}
 
   if (password !== process.env.APP_PASSWORD) return res.status(401).json({ error: 'Unauthorized' })
   if (!ALLOWED_TABLES.includes(table)) return res.status(400).json({ error: 'Invalid table' })
@@ -64,7 +67,7 @@ export default async function handler(req, res) {
     if (action === 'insert' && table === 'entries' && result.data) {
       const entries = Array.isArray(result.data) ? result.data : [result.data]
       for (const entry of entries) {
-        try { await sendPushToMerel(supabase, entry) } catch {}
+        try { await sendPushNotifications(supabase, entry, currentUser) } catch {}
       }
     }
 
