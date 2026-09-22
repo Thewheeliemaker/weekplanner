@@ -762,24 +762,28 @@ $('loginPass').addEventListener('keydown', (e) => { if (e.key === 'Enter') tryLo
 // ── push subscription ──
 async function setupPushSubscription() {
   if (state.currentUser !== 'Merel') return
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
+  if (!('serviceWorker' in navigator)) { console.log('[push] geen SW support'); return }
+  if (!('PushManager' in window)) { console.log('[push] geen PushManager — open de app vanaf het homescreen'); toast('Push werkt alleen vanuit de homescreen-app.'); return }
   try {
     const reg = await navigator.serviceWorker.register('/sw.js')
+    await navigator.serviceWorker.ready
     const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY
-    if (!vapidKey) return
+    if (!vapidKey) { console.log('[push] geen VAPID key'); return }
     const permission = await Notification.requestPermission()
-    if (permission !== 'granted') return
+    if (permission !== 'granted') { console.log('[push] permissie geweigerd:', permission); toast('Sta notificaties toe om meldingen te krijgen.'); return }
     let sub = await reg.pushManager.getSubscription()
     if (!sub) {
       sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidKey })
     }
     const password = localStorage.getItem('wp-auth')
-    await fetch('/api/subscribe', {
+    const resp = await fetch('/api/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password, subscription: sub.toJSON(), user: 'Merel' })
     })
-  } catch {}
+    if (resp.ok) { console.log('[push] subscriptie opgeslagen'); toast('Push-notificaties actief.') }
+    else { const err = await resp.json().catch(() => ({})); console.log('[push] subscribe fout:', err); toast('Push-registratie mislukt: ' + (err.error || resp.status)) }
+  } catch (e) { console.log('[push] fout:', e); toast('Push-setup mislukt: ' + e.message) }
 }
 
 // ── init ──
