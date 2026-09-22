@@ -16,10 +16,24 @@ async function sendPushNotifications(supabase, entry, excludeUser) {
   const filtered = excludeUser ? subs.filter(s => s.user_name !== excludeUser) : subs
   if (filtered.length === 0) return
 
+  const DAY_ABBR = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za']
   const title = entry.title || 'Nieuw item'
   const who = entry.who || ''
-  const body = title + (who && who !== 'Algemeen' ? ' (' + who + ')' : '')
-  const payload = JSON.stringify({ title: 'Weekplanner', body: 'Nieuw: ' + body })
+
+  let when = ''
+  if (entry.date) {
+    const d = new Date(entry.date + 'T12:00:00')
+    when = DAY_ABBR[d.getDay()] + ' ' + d.getDate() + '-' + (d.getMonth() + 1)
+  } else if (entry.weekday) {
+    const abbr = { maandag: 'ma', dinsdag: 'di', woensdag: 'wo', donderdag: 'do', vrijdag: 'vr', zaterdag: 'za', zondag: 'zo' }
+    when = 'elke ' + (abbr[entry.weekday] || entry.weekday)
+  }
+  if (entry.time) when += (when ? ' ' : '') + entry.time
+
+  let body = title
+  if (who && who !== 'Algemeen') body += ' (' + who + ')'
+  if (when) body += ' · ' + when
+  const payload = JSON.stringify({ title: 'Nieuw op het bord', body })
 
   for (const sub of filtered) {
     try {
