@@ -180,17 +180,22 @@ function subscribeRealtime() {
 }
 
 // ── board / task list ──
-function updateNewBadge(count) {
+function getNewSeenAt() { try { return localStorage.getItem('wp-new-seen-at') || '' } catch { return '' } }
+function markNewAsSeen() { try { localStorage.setItem('wp-new-seen-at', new Date().toISOString()) } catch {}; updateNewBadge() }
+
+function updateNewBadge() {
   const badge = $('newBadge')
   if (!badge) return
-  if (count > 0) { badge.textContent = count; badge.hidden = false }
+  const seenAt = getNewSeenAt()
+  const unread = state.entries.filter(e => !e.opFysiekBord && e.createdAt && e.createdAt > seenAt).length
+  if (unread > 0) { badge.textContent = unread; badge.hidden = false }
   else badge.hidden = true
 }
 
 function renderTasks() {
   const ul = $('taskList'), empty = $('taskEmpty')
   const pending = state.entries.filter(e => !e.opFysiekBord).slice().reverse()
-  updateNewBadge(pending.length)
+  updateNewBadge()
   if (pending.length === 0) { ul.innerHTML = ''; empty.hidden = false; return }
   empty.hidden = true
   ul.innerHTML = pending.map(e => {
@@ -381,6 +386,7 @@ document.querySelectorAll('.tab').forEach(btn => {
     const view = btn.dataset.view
     document.querySelectorAll('.tab').forEach(b => { b.classList.toggle('is-active', b === btn); b.setAttribute('aria-selected', b === btn ? 'true' : 'false') })
     ;['week', 'groceries', 'board'].forEach(v => $('view-' + v).hidden = v !== view)
+    if (view === 'board') markNewAsSeen()
   })
 })
 
