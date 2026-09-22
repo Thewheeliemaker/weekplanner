@@ -189,7 +189,7 @@ function updateNewBadge(count) {
 
 function renderTasks() {
   const ul = $('taskList'), empty = $('taskEmpty')
-  const pending = state.entries.filter(e => !e.opFysiekBord)
+  const pending = state.entries.filter(e => !e.opFysiekBord).slice().reverse()
   updateNewBadge(pending.length)
   if (pending.length === 0) { ul.innerHTML = ''; empty.hidden = false; return }
   empty.hidden = true
@@ -752,12 +752,36 @@ async function tryLogin() {
 $('loginSubmit').addEventListener('click', tryLogin)
 $('loginPass').addEventListener('keydown', (e) => { if (e.key === 'Enter') tryLogin() })
 
+// ── push subscription ──
+async function setupPushSubscription() {
+  if (state.currentUser !== 'Merel') return
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
+  try {
+    const reg = await navigator.serviceWorker.register('/sw.js')
+    const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY
+    if (!vapidKey) return
+    const permission = await Notification.requestPermission()
+    if (permission !== 'granted') return
+    let sub = await reg.pushManager.getSubscription()
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidKey })
+    }
+    const password = localStorage.getItem('wp-auth')
+    await fetch('/api/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password, subscription: sub.toJSON(), user: 'Merel' })
+    })
+  } catch {}
+}
+
 // ── init ──
 async function init() {
   await Promise.all([loadEntries(), loadGroceries(), loadFavorites()])
   subscribeRealtime()
   renderWeek()
   initReminders()
+  setupPushSubscription()
   if (state.currentUser) {
     setWho(state.currentUser)
   }

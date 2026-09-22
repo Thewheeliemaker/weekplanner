@@ -1,6 +1,33 @@
 import { createClient } from '@supabase/supabase-js'
+import webpush from 'web-push'
 
 const ALLOWED_TABLES = ['entries', 'boodschappen', 'favorieten', 'photos']
+
+async function sendPushToMerel(supabase, entry) {
+  const vapidPublic = process.env.VITE_VAPID_PUBLIC_KEY
+  const vapidPrivate = process.env.VAPID_PRIVATE_KEY
+  if (!vapidPublic || !vapidPrivate) return
+
+  webpush.setVapidDetails('mailto:weekplanner@example.com', vapidPublic, vapidPrivate)
+
+  const { data: subs } = await supabase.from('push_subscriptions').select('*').eq('user_name', 'Merel')
+  if (!subs || subs.length === 0) return
+
+  const title = entry.title || 'Nieuw item'
+  const who = entry.who || ''
+  const body = title + (who && who !== 'Algemeen' ? ' (' + who + ')' : '')
+  const payload = JSON.stringify({ title: 'Weekplanner', body: 'Nieuw: ' + body })
+
+  for (const sub of subs) {
+    try {
+      await webpush.sendNotification(JSON.parse(sub.subscription), payload)
+    } catch (err) {
+      if (err.statusCode === 410 || err.statusCode === 404) {
+        await supabase.from('push_subscriptions').delete().eq('id', sub.id)
+      }
+    }
+  }
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
@@ -33,6 +60,14 @@ export default async function handler(req, res) {
     }
 
     if (result.error) return res.status(400).json({ error: result.error.message })
+
+    if (action === 'insert' && table === 'entries' && result.data) {
+      const entries = Array.isArray(result.data) ? result.data : [result.data]
+      for (const entry of entries) {
+        try { await sendPushToMerel(supabase, entry) } catch {}
+      }
+    }
+
     res.status(200).json({ ok: true, data: result.data })
   } catch (e) {
     res.status(500).json({ error: e.message })
