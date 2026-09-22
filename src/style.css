@@ -60,6 +60,8 @@ input, select, textarea { font: inherit; color: inherit; }
 .tab { border: none; background: transparent; padding: 6px 2px; margin-right: 16px; font-weight: 600; font-size: 0.86rem; color: var(--ink-soft); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
 .tab:hover { color: var(--ink); }
 .tab.is-active { color: var(--accent-ink); border-bottom-color: var(--accent); }
+.tab-new { font-weight: 500; position: relative; }
+.tab-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; font-size: 0.7rem; font-weight: 700; line-height: 1; border-radius: 9px; background: var(--accent); color: var(--surface); margin-left: 4px; vertical-align: middle; }
 
 .view { padding-top: 10px; display: flex; flex-direction: column; gap: 14px; }
 .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; box-shadow: var(--shadow); }

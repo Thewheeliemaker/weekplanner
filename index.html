@@ -31,7 +31,7 @@
         <nav class="tabs" role="tablist">
           <button class="tab is-active" data-view="week" role="tab" aria-selected="true">Week</button>
           <button class="tab" data-view="groceries" role="tab" aria-selected="false">Boodschappen</button>
-          <button class="tab" data-view="board" role="tab" aria-selected="false">Sync</button>
+          <button class="tab tab-new" data-view="board" role="tab" aria-selected="false">Nieuw <span class="tab-badge" id="newBadge" hidden></span></button>
         </nav>
       </header>
 
@@ -142,6 +142,7 @@
                   <div class="field"><label for="d-title">Wat eten we</label><input type="text" id="d-title" placeholder="Bijv. Pasta bolognese" required maxlength="80" /></div>
                   <div class="field"><label for="d-date">Datum</label><input type="date" id="d-date" required /></div>
                 </div>
+                <div class="field"><label for="d-note">Notitie (optioneel)</label><textarea id="d-note" maxlength="200" placeholder="Bijv. recept of boodschappen"></textarea></div>
                 <div class="form-actions">
                   <button type="submit" class="btn btn-primary btn-sm">Toevoegen</button>
                   <button type="button" class="btn btn-ghost btn-sm" id="d-cancel">Sluiten</button>

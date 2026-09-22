@@ -147,17 +147,36 @@ async function loadFavorites() {
 }
 
 // ── realtime subscriptions ──
+function notifyMerelNewEntry(row) {
+  if (state.currentUser !== 'Merel') return
+  if (!('Notification' in window) || Notification.permission !== 'granted') return
+  const title = row.title || 'Nieuw item'
+  const who = row.who || ''
+  new Notification('Weekplanner', { body: title + (who && who !== 'Algemeen' ? ' (' + who + ')' : ''), icon: '/icon-192.png' })
+}
+
 function subscribeRealtime() {
-  supabase.channel('planbord').on('postgres_changes', { event: '*', schema: 'public', table: 'entries' }, () => loadEntries())
+  supabase.channel('planbord')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'entries' }, (payload) => { notifyMerelNewEntry(payload.new); loadEntries() })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'entries' }, () => loadEntries())
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'entries' }, () => loadEntries())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'boodschappen' }, () => loadGroceries())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'favorieten' }, () => loadFavorites())
     .subscribe()
 }
 
 // ── board / task list ──
+function updateNewBadge(count) {
+  const badge = $('newBadge')
+  if (!badge) return
+  if (count > 0) { badge.textContent = count; badge.hidden = false }
+  else badge.hidden = true
+}
+
 function renderTasks() {
   const ul = $('taskList'), empty = $('taskEmpty')
   const pending = state.entries.filter(e => !e.opFysiekBord)
+  updateNewBadge(pending.length)
   if (pending.length === 0) { ul.innerHTML = ''; empty.hidden = false; return }
   empty.hidden = true
   ul.innerHTML = pending.map(e => {
@@ -167,7 +186,7 @@ function renderTasks() {
       : (DAY_LABELS[e.weekday] ? 'Elke ' + DAY_LABELS[e.weekday].toLowerCase() : '')
     if (e.time) when += (when ? ' · ' : '') + e.time
     if (e.endDate && e.type === 'wekelijks') when += ' (t/m ' + fmtDateFull(e.endDate) + ')'
-    return `<li class="task-row"><button class="task-check" data-id="${esc(e.id)}" aria-label="Markeer als overgezet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"></path></svg></button><div class="task-body"><div class="task-title">${esc(e.title)} ${chipHtml(e.who)}</div>${when ? `<div class="task-when mono">${esc(when)}</div>` : ''}${e.note ? `<div class="task-note">${esc(e.note)}</div>` : ''}<span class="task-source">${e.source === 'handmatig' ? 'handmatig' : e.source === 'foto' ? 'via foto' : 'via beschrijving'}</span></div><button class="icon-btn task-del" data-id="${esc(e.id)}" aria-label="Verwijderen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-8 0 1 12a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1l1-12"></path></svg></button></li>`
+    return `<li class="task-row"><button class="task-check" data-id="${esc(e.id)}" aria-label="Markeer als overgezet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"></path></svg></button><div class="task-body"><div class="task-title">${esc(e.title)} ${e.category === 'eten' ? '' : chipHtml(e.who)}</div>${when ? `<div class="task-when mono">${esc(when)}</div>` : ''}${e.note ? `<div class="task-note">${esc(e.note)}</div>` : ''}<span class="task-source">${e.source === 'handmatig' ? 'handmatig' : e.source === 'foto' ? 'via foto' : 'via beschrijving'}</span></div><button class="icon-btn task-del" data-id="${esc(e.id)}" aria-label="Verwijderen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-8 0 1 12a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1l1-12"></path></svg></button></li>`
   }).join('')
   ul.querySelectorAll('.task-check').forEach(btn => btn.addEventListener('click', async () => {
     const { error } = await dbWrite('update', 'entries', { id: btn.dataset.id, data: { op_fysiek_bord: true } })
@@ -306,7 +325,7 @@ function renderWeekAgenda(days, todayStr) {
       : items.map(e => {
           const t = showTimeForDay(e, dStr)
           const names = whoList(e)
-          const chips = names.map(n => chipHtml(n)).join('')
+          const chips = (e.category === 'eten' ? [] : names).map(n => chipHtml(n)).join('')
           return `<li class="agenda-item" data-id="${esc(e.id)}" title="${esc(entryTooltip(e))}">${entryIconHtml(e, names[0])}${chips}${t ? `<span class="agenda-time mono">${esc(t)}</span>` : ''}<span class="agenda-title">${esc(e.title)}</span>${e.note ? '<svg class="ci-note" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>' : ''}<span class="ci-dot ${e.opFysiekBord ? 'on-bord' : 'pending'}"></span><button class="agenda-del" data-id="${esc(e.id)}" data-date="${esc(dStr)}" aria-label="Verwijderen">×</button></li>`
         }).join('')
     return `<div class="agenda-day${isToday ? ' is-today' : ''}"><div class="agenda-day-head"><span class="agenda-day-name">${DAY_LABELS[dName]}</span><span class="agenda-day-date mono">${shortDate(day)}</span><button class="agenda-day-add" data-date="${esc(dStr)}" data-dayname="${esc(dName)}" aria-label="Item toevoegen">+</button></div><ul class="agenda-items">${itemsHtml}</ul></div>`
@@ -373,6 +392,7 @@ function openItemForDay(dateStr, dayName) {
   state.addForDate = { date: dateStr, dayName }
   resetItemPanel()
   itemPanel.hidden = false
+  itemPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   const el = $('quick-text')
   el.placeholder = 'Item voor ' + DAY_LABELS[dayName] + '…'
 }
@@ -540,13 +560,13 @@ $('btnNewDinner').addEventListener('click', () => { const was = dinnerPanel.hidd
 $('d-cancel').addEventListener('click', () => dinnerPanel.hidden = true)
 $('dinnerQuickForm').addEventListener('submit', async (ev) => {
   ev.preventDefault()
-  const title = $('d-title').value.trim(), date = $('d-date').value
+  const title = $('d-title').value.trim(), date = $('d-date').value, note = $('d-note').value.trim()
   if (!title || !date) { toast('Vul in wat we eten en de datum.'); return }
   const btn = ev.target.querySelector('button[type="submit"]'); btn.disabled = true
-  const { error } = await dbWrite('insert', 'entries', { data: { title, who: 'Algemeen', type: 'eenmalig', date, time: '', note: '', category: 'eten', source: 'handmatig', op_fysiek_bord: false } })
+  const { error } = await dbWrite('insert', 'entries', { data: { title, who: 'Algemeen', type: 'eenmalig', date, time: '', note, category: 'eten', source: 'handmatig', op_fysiek_bord: false } })
   btn.disabled = false
   if (error) { toast('Toevoegen mislukt.'); return }
-  toast('Avondeten toegevoegd.'); $('d-title').value = ''; dinnerPanel.hidden = true; loadEntries()
+  toast('Avondeten toegevoegd.'); $('d-title').value = ''; $('d-note').value = ''; dinnerPanel.hidden = true; loadEntries()
 })
 
 // ── photo OCR ──
