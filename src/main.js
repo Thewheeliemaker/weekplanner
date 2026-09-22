@@ -760,17 +760,23 @@ $('loginSubmit').addEventListener('click', tryLogin)
 $('loginPass').addEventListener('keydown', (e) => { if (e.key === 'Enter') tryLogin() })
 
 // ── push subscription ──
-async function setupPushSubscription() {
+const pushPromptEl = $('pushPrompt'), pushEnableBtn = $('pushEnable'), pushDismissBtn = $('pushDismiss')
+
+function showPushPrompt() {
   if (state.currentUser !== 'Merel') return
-  if (!('serviceWorker' in navigator)) { console.log('[push] geen SW support'); return }
-  if (!('PushManager' in window)) { console.log('[push] geen PushManager — open de app vanaf het homescreen'); toast('Push werkt alleen vanuit de homescreen-app.'); return }
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
+  if (Notification.permission === 'granted') { doSubscribePush(); return }
+  if (Notification.permission === 'denied') return
+  if (localStorage.getItem('wp-push-dismissed')) return
+  if (pushPromptEl) pushPromptEl.hidden = false
+}
+
+async function doSubscribePush() {
   try {
     const reg = await navigator.serviceWorker.register('/sw.js')
     await navigator.serviceWorker.ready
     const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY
-    if (!vapidKey) { console.log('[push] geen VAPID key'); return }
-    const permission = await Notification.requestPermission()
-    if (permission !== 'granted') { console.log('[push] permissie geweigerd:', permission); toast('Sta notificaties toe om meldingen te krijgen.'); return }
+    if (!vapidKey) return
     let sub = await reg.pushManager.getSubscription()
     if (!sub) {
       sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidKey })
@@ -781,10 +787,21 @@ async function setupPushSubscription() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password, subscription: sub.toJSON(), user: 'Merel' })
     })
-    if (resp.ok) { console.log('[push] subscriptie opgeslagen'); toast('Push-notificaties actief.') }
-    else { const err = await resp.json().catch(() => ({})); console.log('[push] subscribe fout:', err); toast('Push-registratie mislukt: ' + (err.error || resp.status)) }
-  } catch (e) { console.log('[push] fout:', e); toast('Push-setup mislukt: ' + e.message) }
+    if (resp.ok) toast('Push-notificaties actief.')
+    else { const err = await resp.json().catch(() => ({})); toast('Push-registratie mislukt: ' + (err.error || resp.status)) }
+  } catch (e) { toast('Push-setup mislukt: ' + e.message) }
 }
+
+if (pushEnableBtn) pushEnableBtn.addEventListener('click', async () => {
+  if (pushPromptEl) pushPromptEl.hidden = true
+  const permission = await Notification.requestPermission()
+  if (permission === 'granted') { doSubscribePush() }
+  else { toast('Notificaties zijn geblokkeerd. Schakel ze in via Instellingen.') }
+})
+if (pushDismissBtn) pushDismissBtn.addEventListener('click', () => {
+  if (pushPromptEl) pushPromptEl.hidden = true
+  try { localStorage.setItem('wp-push-dismissed', '1') } catch {}
+})
 
 // ── init ──
 async function init() {
@@ -792,7 +809,7 @@ async function init() {
   subscribeRealtime()
   renderWeek()
   initReminders()
-  setupPushSubscription()
+  showPushPrompt()
   if (state.currentUser) {
     setWho(state.currentUser)
   }
