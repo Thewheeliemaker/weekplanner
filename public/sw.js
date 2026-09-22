@@ -2,12 +2,15 @@ self.addEventListener('push', (event) => {
   let data = { title: 'Weekplanner', body: 'Nieuw item toegevoegd' }
   try { data = event.data.json() } catch {}
   event.waitUntil(
-    self.registration.showNotification(data.title || 'Weekplanner', {
-      body: data.body || '',
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
-      vibrate: [200, 100, 200]
-    })
+    Promise.all([
+      self.registration.showNotification(data.title || 'Weekplanner', {
+        body: data.body || '',
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
+        vibrate: [200, 100, 200]
+      }),
+      navigator.setAppBadge ? navigator.setAppBadge() : Promise.resolve()
+    ])
   )
 })
 

@@ -181,7 +181,7 @@ function subscribeRealtime() {
 
 // ── board / task list ──
 function getNewSeenAt() { try { return localStorage.getItem('wp-new-seen-at') || '' } catch { return '' } }
-function markNewAsSeen() { try { localStorage.setItem('wp-new-seen-at', new Date().toISOString()) } catch {}; updateNewBadge() }
+function markNewAsSeen() { try { localStorage.setItem('wp-new-seen-at', new Date().toISOString()) } catch {}; updateNewBadge(); try { navigator.clearAppBadge?.() } catch {} }
 
 function updateNewBadge() {
   const badge = $('newBadge')
@@ -190,6 +190,7 @@ function updateNewBadge() {
   const unread = state.entries.filter(e => !e.opFysiekBord && e.createdAt && e.createdAt > seenAt).length
   if (unread > 0) { badge.textContent = unread; badge.hidden = false }
   else badge.hidden = true
+  try { if ('setAppBadge' in navigator) { unread > 0 ? navigator.setAppBadge(unread) : navigator.clearAppBadge() } } catch {}
 }
 
 function renderTasks() {
