@@ -398,6 +398,13 @@ weekJumpDate.addEventListener('change', () => {
   renderWeek()
 })
 
+// ── keyboard nav (desktop) ──
+document.addEventListener('keydown', (ev) => {
+  if (ev.target.tagName === 'INPUT' || ev.target.tagName === 'TEXTAREA' || ev.target.tagName === 'SELECT' || ev.target.isContentEditable) return
+  if (ev.key === 'ArrowLeft') { state.weekOffset -= 1; animateWeek('right') }
+  else if (ev.key === 'ArrowRight') { state.weekOffset += 1; animateWeek('left') }
+})
+
 // ── swipe nav (mobile) ──
 ;(function () {
   const el = $('view-week')
