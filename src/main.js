@@ -382,6 +382,22 @@ $('weekPrev').addEventListener('click', () => { state.weekOffset -= 1; animateWe
 $('weekNext').addEventListener('click', () => { state.weekOffset += 1; animateWeek('left') })
 $('weekToday').addEventListener('click', () => { state.weekOffset = 0; renderWeek() })
 
+const weekJumpDate = $('weekJumpDate')
+$('weekTitleBtn').addEventListener('click', () => {
+  const days = getWeekDays(state.weekOffset)
+  weekJumpDate.value = ymd(days[0])
+  weekJumpDate.showPicker ? weekJumpDate.showPicker() : weekJumpDate.click()
+})
+weekJumpDate.addEventListener('change', () => {
+  if (!weekJumpDate.value) return
+  const picked = new Date(weekJumpDate.value + 'T12:00:00')
+  const todayMon = mondayOf(new Date())
+  const pickedMon = mondayOf(picked)
+  const diffWeeks = Math.round((pickedMon - todayMon) / (7 * 86400000))
+  state.weekOffset = diffWeeks
+  renderWeek()
+})
+
 // ── swipe nav (mobile) ──
 ;(function () {
   const el = $('view-week')
