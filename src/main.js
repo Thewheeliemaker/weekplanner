@@ -221,9 +221,20 @@ function renderTasks() {
   }))
 }
 
-$('clearBoard').addEventListener('click', () => {
+$('clearBoard').addEventListener('click', async () => {
   const pending = state.entries.filter(e => !e.opFysiekBord)
-  deleteManyWithUndo('entries', pending.map(e => ({ id: e.id, ...entryToRow(e) })), 'takenlijst gewist').then(loadEntries)
+  if (pending.length === 0) { toast('Niets te wissen.'); return }
+  const choice = await showChoiceModal(
+    'Alles als verwerkt markeren',
+    pending.length + ' item(s) worden als "overgezet op het bord" gemarkeerd. Ze verdwijnen van deze lijst maar blijven op het weekoverzicht staan.',
+    [{ id: 'confirm', label: 'Ja, markeer alles', variant: 'btn-primary' }]
+  )
+  if (choice !== 'confirm') return
+  for (const e of pending) {
+    await dbWrite('update', 'entries', { id: e.id, data: { op_fysiek_bord: true } })
+  }
+  toast(pending.length + ' items als verwerkt gemarkeerd.')
+  loadEntries()
 })
 
 function whoList(e) { return e.who ? e.who.split(',').map(s => s.trim()) : [] }
