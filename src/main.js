@@ -491,6 +491,10 @@ $('quick-manual').addEventListener('click', () => {
   $('quickAddBox').hidden = true; $('itemForm').hidden = false; focusSoon('f-title')
 })
 
+$('quick-text').addEventListener('keydown', (ev) => {
+  if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); $('quick-parse').click() }
+})
+
 $('quick-parse').addEventListener('click', async () => {
   const text = $('quick-text').value.trim()
   if (!text) { toast('Typ eerst wat je wilt toevoegen.'); return }
