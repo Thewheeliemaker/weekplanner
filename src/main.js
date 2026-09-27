@@ -347,6 +347,7 @@ function renderWeek() {
   const table = $('weekTable')
   table.innerHTML = theadHtml + '<tbody>' + rows + '</tbody>'
   table.style.minWidth = state.filterWho ? '0' : ''
+  table.style.setProperty('--col-count', String(visibleCols.length))
   table.querySelectorAll('thead th[data-col]').forEach(th => {
     th.title = state.filterWho === th.dataset.col ? 'Klik om iedereen te tonen' : 'Klik om alleen ' + th.dataset.col + ' te tonen'
     th.addEventListener('click', () => { state.filterWho = state.filterWho === th.dataset.col ? null : th.dataset.col; renderWeek() })

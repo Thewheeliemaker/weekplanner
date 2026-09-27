@@ -117,7 +117,7 @@ input, select, textarea { font: inherit; color: inherit; }
 .grocery-quick-form input { flex: 1; border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 8px 10px; font-size: 0.88rem; }
 
 .week-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-top: 8px; }
-table.week-table { border-collapse: collapse; width: 100%; min-width: 620px; table-layout: fixed; }
+table.week-table { border-collapse: collapse; width: 100%; min-width: 620px; }
 .week-table th, .week-table td { border: 1px solid var(--border); padding: 3px 6px; vertical-align: top; text-align: left; }
 .week-table thead th { background: var(--surface-2); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em; padding: 4px 6px; white-space: nowrap; }
 .week-table .day-th { position: sticky; left: 0; z-index: 2; background: var(--surface-2); }
@@ -130,7 +130,7 @@ table.week-table { border-collapse: collapse; width: 100%; min-width: 620px; tab
 .day-td:hover .day-add, .day-add:focus-visible { opacity: 1; }
 .day-add:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
 @media (pointer: coarse) { .day-add { opacity: 0.6; } }
-.week-table td { min-width: 112px; }
+.week-table td:not(.day-td), .week-table th:not(.day-th) { width: calc((100% - 62px) / var(--col-count, 5)); }
 .ci { display: flex; align-items: baseline; gap: 4px; font-size: 0.76rem; line-height: 1.35; white-space: nowrap; overflow: hidden; cursor: pointer; border-radius: 3px; padding: 1px 2px; margin: -1px -2px; }
 .ci:hover { background: var(--accent-soft); }
 .ci-title { overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
