@@ -128,9 +128,15 @@ function entryToRow(e) {
 
 // ── data loading ──
 async function loadEntries() {
-  const { data, error } = await supabase.from('entries').select('*').order('created_at', { ascending: true }).limit(5000)
-  if (error) { toast('Kon items niet laden.'); return }
-  state.entries = data.map(rowToEntry)
+  const cutoff = new Date()
+  cutoff.setMonth(cutoff.getMonth() - 3)
+  const cutoffStr = ymd(cutoff)
+  const [recurring, dated] = await Promise.all([
+    supabase.from('entries').select('*').in('type', ['wekelijks', 'jaarlijks']),
+    supabase.from('entries').select('*').in('type', ['eenmalig', 'periode']).or('date.gte.' + cutoffStr + ',end_date.gte.' + cutoffStr + ',date.is.null')
+  ])
+  if (recurring.error || dated.error) { toast('Kon items niet laden.'); return }
+  state.entries = (recurring.data || []).concat(dated.data || []).map(rowToEntry)
   renderTasks(); renderWeek()
 }
 async function loadGroceries() {
@@ -435,6 +441,7 @@ function openEditEntry(id) {
   if (e.weekday) $('f-weekday').value = e.weekday
   if (e.date) $('f-date').value = e.date
   if (e.endDate) $('f-enddate').value = e.endDate
+  syncEndDateMin()
   if (e.reminderMinutes != null) $('f-reminder').value = String(e.reminderMinutes)
   $('f-submit').textContent = 'Opslaan'
   $('f-back').hidden = true
@@ -523,7 +530,17 @@ function restoreFieldOrder() { weekdayRow.parentNode.insertBefore(weekdayRow, da
 typeWeekly.addEventListener('click', () => { state.addType = 'wekelijks'; setTypeButtons(typeWeekly); restoreFieldOrder(); weekdayRow.style.gridTemplateColumns = ''; weekdayField.hidden = false; endDateField.hidden = false; dateField.hidden = true; endDateFieldLabel.textContent = 'Tot en met (optioneel)'; dateFieldHint.hidden = true })
 typeYearly.addEventListener('click', () => { state.addType = 'jaarlijks'; setTypeButtons(typeYearly); restoreFieldOrder(); weekdayField.hidden = true; endDateField.hidden = true; dateField.hidden = false; dateFieldLabel.textContent = 'Datum (dit jaar)'; dateFieldHint.hidden = false; $('f-enddate').value = '' })
 typeOnce.addEventListener('click', () => { state.addType = 'eenmalig'; setTypeButtons(typeOnce); restoreFieldOrder(); weekdayField.hidden = true; endDateField.hidden = true; dateField.hidden = false; dateFieldLabel.textContent = 'Datum'; dateFieldHint.hidden = true; $('f-enddate').value = '' })
-typePeriod.addEventListener('click', () => { state.addType = 'periode'; setTypeButtons(typePeriod); dateField.parentNode.insertBefore(dateField, weekdayRow); weekdayField.hidden = true; weekdayRow.style.gridTemplateColumns = '1fr'; endDateField.hidden = false; endDateFieldLabel.textContent = 'Tot en met'; dateField.hidden = false; dateFieldLabel.textContent = 'Vanaf'; dateFieldHint.hidden = true })
+typePeriod.addEventListener('click', () => { state.addType = 'periode'; setTypeButtons(typePeriod); dateField.parentNode.insertBefore(dateField, weekdayRow); weekdayField.hidden = true; weekdayRow.style.gridTemplateColumns = '1fr'; endDateField.hidden = false; endDateFieldLabel.textContent = 'Tot en met'; dateField.hidden = false; dateFieldLabel.textContent = 'Vanaf'; dateFieldHint.hidden = true; syncEndDateMin() })
+
+function syncEndDateMin() {
+  const startVal = $('f-date').value
+  const endEl = $('f-enddate')
+  if (startVal) {
+    endEl.min = startVal
+    if (!endEl.value || endEl.value < startVal) endEl.value = startVal
+  }
+}
+$('f-date').addEventListener('change', syncEndDateMin)
 
 $('itemForm').addEventListener('submit', async (ev) => {
   ev.preventDefault()
