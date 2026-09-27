@@ -534,15 +534,18 @@ $('quick-parse').addEventListener('click', async () => {
     const d = await resp.json()
     $('itemForm').reset(); setTimePicker('')
     if (d.title) $('f-title').value = d.title
-    if (d.who) setWho(d.who)
     if (d.time) setTimePicker(d.time)
     if (d.note) $('f-note').value = d.note
     if (d.date) $('f-date').value = d.date
+    else if (state.addForDate) $('f-date').value = state.addForDate.date
     if (d.end_date) $('f-enddate').value = d.end_date
     if (d.weekday) $('f-weekday').value = d.weekday
     const typeMap = { wekelijks: typeWeekly, jaarlijks: typeYearly, eenmalig: typeOnce, periode: typePeriod }
     const typeBtn = typeMap[d.type] || typeWeekly
     typeBtn.click()
+    if (d.who) setWho(d.who)
+    else if (state.addForDate && state.addForDate.who) setWho(state.addForDate.who)
+    else if (state.currentUser) setWho(state.currentUser)
     $('categoryField').hidden = true
     $('quick-hint').textContent = 'AI-interpretatie van: "' + text + '" — controleer en pas aan.'
     $('quick-hint').hidden = false

@@ -117,10 +117,10 @@ input, select, textarea { font: inherit; color: inherit; }
 .grocery-quick-form input { flex: 1; border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 8px 10px; font-size: 0.88rem; }
 
 .week-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-top: 8px; }
-table.week-table { border-collapse: collapse; width: 100%; min-width: 620px; }
+table.week-table { border-collapse: collapse; width: 100%; min-width: 620px; table-layout: fixed; }
 .week-table th, .week-table td { border: 1px solid var(--border); padding: 3px 6px; vertical-align: top; text-align: left; }
 .week-table thead th { background: var(--surface-2); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em; padding: 4px 6px; white-space: nowrap; }
-.week-table .day-th { position: sticky; left: 0; z-index: 2; background: var(--surface-2); }
+.week-table .day-th { position: sticky; left: 0; z-index: 2; background: var(--surface-2); width: 62px; }
 .week-table .day-td { position: sticky; left: 0; z-index: 1; background: var(--surface); width: 62px; min-width: 62px; box-shadow: 1px 0 0 var(--border); }
 .week-table tr.is-today .day-td { background: var(--accent-soft); }
 .week-table tr.is-today td { background: var(--accent-soft); }
