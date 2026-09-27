@@ -116,6 +116,10 @@
                   <input type="date" id="f-date" />
                   <p class="ai-hint" id="dateFieldHint" hidden style="margin-top:2px;">Alleen dag en maand tellen mee — dit komt jaarlijks terug.</p>
                 </div>
+                <div class="field" id="birthYearField" hidden>
+                  <label for="f-birthyear">Geboortejaar (optioneel)</label>
+                  <input type="number" id="f-birthyear" min="1900" max="2030" placeholder="Bijv. 1985" />
+                </div>
                 <div class="field"><label for="f-note">Notitie (optioneel)</label><textarea id="f-note" maxlength="200" placeholder="Extra info"></textarea></div>
                 <div class="field"><label for="f-reminder">Herinnering (optioneel)</label><select id="f-reminder"><option value="">Geen</option><option value="0">Op het moment zelf</option><option value="15">15 minuten van tevoren</option><option value="30">30 minuten van tevoren</option><option value="60">1 uur van tevoren</option><option value="1440">1 dag van tevoren</option></select></div>
                 <div class="form-actions">

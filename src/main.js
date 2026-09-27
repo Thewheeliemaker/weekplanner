@@ -120,10 +120,10 @@ function chipHtml(who) {
 
 // ── Supabase data helpers (snake_case ↔ camelCase) ──
 function rowToEntry(r) {
-  return { id: r.id, title: r.title, who: r.who, type: r.type, weekday: r.weekday, date: r.date, endDate: r.end_date, time: r.time || '', note: r.note || '', category: r.category, skipDates: r.skip_dates || [], source: r.source, opFysiekBord: r.op_fysiek_bord, photoId: r.photo_id, reminderMinutes: r.reminder_minutes, createdAt: r.created_at }
+  return { id: r.id, title: r.title, who: r.who, type: r.type, weekday: r.weekday, date: r.date, endDate: r.end_date, time: r.time || '', note: r.note || '', category: r.category, skipDates: r.skip_dates || [], source: r.source, opFysiekBord: r.op_fysiek_bord, photoId: r.photo_id, reminderMinutes: r.reminder_minutes, birthYear: r.birth_year, createdAt: r.created_at }
 }
 function entryToRow(e) {
-  return { title: e.title, who: e.who, type: e.type, weekday: e.weekday || null, date: e.date || null, end_date: e.endDate || null, time: e.time || '', note: e.note || '', category: e.category || null, skip_dates: e.skipDates || [], source: e.source || 'handmatig', op_fysiek_bord: e.opFysiekBord ?? false, photo_id: e.photoId || null, reminder_minutes: e.reminderMinutes ?? null }
+  return { title: e.title, who: e.who, type: e.type, weekday: e.weekday || null, date: e.date || null, end_date: e.endDate || null, time: e.time || '', note: e.note || '', category: e.category || null, skip_dates: e.skipDates || [], source: e.source || 'handmatig', op_fysiek_bord: e.opFysiekBord ?? false, photo_id: e.photoId || null, reminder_minutes: e.reminderMinutes ?? null, birth_year: e.birthYear || null }
 }
 
 // ── data loading ──
@@ -257,10 +257,20 @@ function showTimeForDay(e, dStr) {
   return e.time
 }
 
+function ageForYear(birthYear, displayYear) { return birthYear ? displayYear - birthYear : null }
+
 function entryIconHtml(e, col) {
+  if (e.type === 'jaarlijks' && e.birthYear) return '<span class="ci-icon-emoji">🎂</span>'
   if (col === 'Algemeen' && e.category === 'eten') return '<svg class="ci-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v7a2 2 0 0 0 2 2v9M6 3v7M9 3v7M15 3c-1.5 0-2 2-2 4s.5 4 2 4v10"></path></svg>'
   if (col === 'Algemeen') return ''
   return ''
+}
+
+function entryAgeBadge(e, dStr) {
+  if (e.type !== 'jaarlijks' || !e.birthYear || !dStr) return ''
+  const year = parseInt(dStr.slice(0, 4))
+  const age = ageForYear(e.birthYear, year)
+  return age > 0 ? '<span class="ci-age">' + age + ' jr</span>' : ''
 }
 function entryTooltip(e) {
   let tt = e.note || ''
@@ -327,7 +337,7 @@ function renderWeek() {
         .sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'))
       const body = items.map(e => {
         const t = showTimeForDay(e, dStr)
-        return `<div class="ci" data-id="${esc(e.id)}" title="${esc(entryTooltip(e))}">${entryIconHtml(e, col)}<span class="ci-dot ${e.opFysiekBord ? 'on-bord' : 'pending'}" title="${e.opFysiekBord ? 'Staat op het bord' : 'Nog overzetten'}"></span>${t ? `<span class="ci-time mono">${esc(t)}</span>` : ''}<span class="ci-title">${esc(e.title)}</span>${e.note ? '<svg class="ci-note" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>' : ''}<button class="ci-del" data-id="${esc(e.id)}" data-date="${esc(dStr)}" aria-label="Verwijderen">×</button></div>`
+        return `<div class="ci" data-id="${esc(e.id)}" title="${esc(entryTooltip(e))}">${entryIconHtml(e, col)}<span class="ci-dot ${e.opFysiekBord ? 'on-bord' : 'pending'}" title="${e.opFysiekBord ? 'Staat op het bord' : 'Nog overzetten'}"></span>${t ? `<span class="ci-time mono">${esc(t)}</span>` : ''}<span class="ci-title">${esc(e.title)}</span>${entryAgeBadge(e, dStr)}${e.note ? '<svg class="ci-note" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>' : ''}<button class="ci-del" data-id="${esc(e.id)}" data-date="${esc(dStr)}" aria-label="Verwijderen">×</button></div>`
       }).join('')
       return '<td>' + body + '</td>'
     }).join('')
@@ -360,7 +370,7 @@ function renderWeekAgenda(days, todayStr) {
           const t = showTimeForDay(e, dStr)
           const names = whoList(e)
           const chips = (e.category === 'eten' ? [] : names).map(n => chipHtml(n)).join('')
-          return `<li class="agenda-item" data-id="${esc(e.id)}" title="${esc(entryTooltip(e))}">${entryIconHtml(e, names[0])}${chips}${t ? `<span class="agenda-time mono">${esc(t)}</span>` : ''}<span class="agenda-title">${esc(e.title)}</span>${e.note ? '<svg class="ci-note" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>' : ''}<span class="ci-dot ${e.opFysiekBord ? 'on-bord' : 'pending'}"></span><button class="agenda-del" data-id="${esc(e.id)}" data-date="${esc(dStr)}" aria-label="Verwijderen">×</button></li>`
+          return `<li class="agenda-item" data-id="${esc(e.id)}" title="${esc(entryTooltip(e))}">${entryIconHtml(e, names[0])}${chips}${t ? `<span class="agenda-time mono">${esc(t)}</span>` : ''}<span class="agenda-title">${esc(e.title)}</span>${entryAgeBadge(e, dStr)}${e.note ? '<svg class="ci-note" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>' : ''}<span class="ci-dot ${e.opFysiekBord ? 'on-bord' : 'pending'}"></span><button class="agenda-del" data-id="${esc(e.id)}" data-date="${esc(dStr)}" aria-label="Verwijderen">×</button></li>`
         }).join('')
     return `<div class="agenda-day${isToday ? ' is-today' : ''}"><div class="agenda-day-head"><span class="agenda-day-name">${DAY_LABELS[dName]}</span><span class="agenda-day-date mono">${shortDate(day)}</span><button class="agenda-day-add" data-date="${esc(dStr)}" data-dayname="${esc(dName)}" aria-label="Item toevoegen">+</button></div><ul class="agenda-items">${itemsHtml}</ul></div>`
   }).join('')
@@ -477,6 +487,7 @@ function openEditEntry(id) {
   if (e.endDate) $('f-enddate').value = e.endDate
   syncEndDateMin()
   if (e.reminderMinutes != null) $('f-reminder').value = String(e.reminderMinutes)
+  $('f-birthyear').value = e.birthYear || ''
   $('f-submit').textContent = 'Opslaan'
   $('f-back').hidden = true
   itemPanel.hidden = false
@@ -565,10 +576,10 @@ const endDateFieldLabel = $('endDateFieldLabel'), dateField = $('dateField'), da
 function setTypeButtons(active) { [typeWeekly, typeYearly, typeOnce, typePeriod].forEach(b => b.classList.toggle('is-active', b === active)) }
 function restoreFieldOrder() { weekdayRow.parentNode.insertBefore(weekdayRow, dateField) }
 
-typeWeekly.addEventListener('click', () => { state.addType = 'wekelijks'; setTypeButtons(typeWeekly); restoreFieldOrder(); weekdayRow.style.gridTemplateColumns = ''; weekdayField.hidden = false; endDateField.hidden = false; dateField.hidden = true; endDateFieldLabel.textContent = 'Tot en met (optioneel)'; dateFieldHint.hidden = true; $('f-enddate').min = '' })
-typeYearly.addEventListener('click', () => { state.addType = 'jaarlijks'; setTypeButtons(typeYearly); restoreFieldOrder(); weekdayField.hidden = true; endDateField.hidden = true; dateField.hidden = false; dateFieldLabel.textContent = 'Datum (dit jaar)'; dateFieldHint.hidden = false; $('f-enddate').value = '' })
-typeOnce.addEventListener('click', () => { state.addType = 'eenmalig'; setTypeButtons(typeOnce); restoreFieldOrder(); weekdayField.hidden = true; endDateField.hidden = true; dateField.hidden = false; dateFieldLabel.textContent = 'Datum'; dateFieldHint.hidden = true; $('f-enddate').value = '' })
-typePeriod.addEventListener('click', () => { state.addType = 'periode'; setTypeButtons(typePeriod); dateField.parentNode.insertBefore(dateField, weekdayRow); weekdayField.hidden = true; weekdayRow.style.gridTemplateColumns = '1fr'; endDateField.hidden = false; endDateFieldLabel.textContent = 'Tot en met'; dateField.hidden = false; dateFieldLabel.textContent = 'Vanaf'; dateFieldHint.hidden = true; syncEndDateMin() })
+typeWeekly.addEventListener('click', () => { state.addType = 'wekelijks'; setTypeButtons(typeWeekly); restoreFieldOrder(); weekdayRow.style.gridTemplateColumns = ''; weekdayField.hidden = false; endDateField.hidden = false; dateField.hidden = true; endDateFieldLabel.textContent = 'Tot en met (optioneel)'; dateFieldHint.hidden = true; $('f-enddate').min = ''; $('birthYearField').hidden = true })
+typeYearly.addEventListener('click', () => { state.addType = 'jaarlijks'; setTypeButtons(typeYearly); restoreFieldOrder(); weekdayField.hidden = true; endDateField.hidden = true; dateField.hidden = false; dateFieldLabel.textContent = 'Datum (dit jaar)'; dateFieldHint.hidden = false; $('f-enddate').value = ''; $('birthYearField').hidden = false })
+typeOnce.addEventListener('click', () => { state.addType = 'eenmalig'; setTypeButtons(typeOnce); restoreFieldOrder(); weekdayField.hidden = true; endDateField.hidden = true; dateField.hidden = false; dateFieldLabel.textContent = 'Datum'; dateFieldHint.hidden = true; $('f-enddate').value = ''; $('birthYearField').hidden = true })
+typePeriod.addEventListener('click', () => { state.addType = 'periode'; setTypeButtons(typePeriod); dateField.parentNode.insertBefore(dateField, weekdayRow); weekdayField.hidden = true; weekdayRow.style.gridTemplateColumns = '1fr'; endDateField.hidden = false; endDateFieldLabel.textContent = 'Tot en met'; dateField.hidden = false; dateFieldLabel.textContent = 'Vanaf'; dateFieldHint.hidden = true; syncEndDateMin(); $('birthYearField').hidden = true })
 
 function syncEndDateMin() {
   const startVal = $('f-date').value
@@ -599,7 +610,8 @@ $('itemForm').addEventListener('submit', async (ev) => {
     date: (state.addType === 'eenmalig' || state.addType === 'jaarlijks' || state.addType === 'periode') ? date : null,
     end_date: (state.addType === 'wekelijks' && endDate) ? endDate : (state.addType === 'periode' ? endDate : null),
     time: time || '', note, category,
-    reminder_minutes: reminderVal !== '' ? parseInt(reminderVal) : null
+    reminder_minutes: reminderVal !== '' ? parseInt(reminderVal) : null,
+    birth_year: (state.addType === 'jaarlijks' && $('f-birthyear').value) ? parseInt($('f-birthyear').value) : null
   }
   let error
   if (state.editId) {
