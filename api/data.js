@@ -70,6 +70,9 @@ export default async function handler(req, res) {
       result = await supabase.from(table).update(data).eq('id', id).select()
     } else if (action === 'delete' && id) {
       result = await supabase.from(table).delete().eq('id', id)
+    } else if (action === 'update_many' && ids && Array.isArray(ids)) {
+      if (!data) return res.status(400).json({ error: 'Missing data' })
+      result = await supabase.from(table).update(data).in('id', ids).select()
     } else if (action === 'delete_many' && ids && Array.isArray(ids)) {
       result = await supabase.from(table).delete().in('id', ids)
     } else {

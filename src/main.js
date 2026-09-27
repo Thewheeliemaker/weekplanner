@@ -230,9 +230,9 @@ $('clearBoard').addEventListener('click', async () => {
     [{ id: 'confirm', label: 'Ja, markeer alles', variant: 'btn-primary' }]
   )
   if (choice !== 'confirm') return
-  for (const e of pending) {
-    await dbWrite('update', 'entries', { id: e.id, data: { op_fysiek_bord: true } })
-  }
+  const ids = pending.map(e => e.id)
+  const { error } = await dbWrite('update_many', 'entries', { ids, data: { op_fysiek_bord: true } })
+  if (error) { toast('Markeren mislukt.'); return }
   toast(pending.length + ' items als verwerkt gemarkeerd.')
   loadEntries()
 })
