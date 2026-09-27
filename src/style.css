@@ -83,8 +83,9 @@ input, select, textarea { font: inherit; color: inherit; }
 
 .week-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .week-nav { display: flex; align-items: center; gap: 8px; }
-.week-title { text-align: center; min-width: 140px; border-radius: 8px; padding: 4px 10px; transition: background 0.15s; }
+.week-title { text-align: center; min-width: 140px; border-radius: 8px; padding: 4px 10px; transition: background 0.15s; position: relative; cursor: pointer; }
 .week-title:hover, .week-title:focus-visible { background: var(--surface-raised, rgba(0,0,0,0.05)); }
+.week-jump-input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; -webkit-appearance: none; }
 .week-title strong { font-size: 0.92rem; }
 .week-range { display: block; font-size: 0.72rem; color: var(--ink-soft); margin-top: 0; }
 .week-actions { display: flex; gap: 6px; flex-wrap: wrap; }

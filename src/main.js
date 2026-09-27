@@ -476,10 +476,14 @@ $('weekNext').addEventListener('click', () => { state.weekOffset += 1; animateWe
 $('weekToday').addEventListener('click', () => { state.weekOffset = 0; renderWeek() })
 
 const weekJumpDate = $('weekJumpDate')
-$('weekTitleBtn').addEventListener('click', () => {
+function syncWeekJumpValue() {
   const days = getWeekDays(state.weekOffset)
   weekJumpDate.value = ymd(days[0])
-  weekJumpDate.showPicker ? weekJumpDate.showPicker() : weekJumpDate.click()
+}
+weekJumpDate.addEventListener('focus', syncWeekJumpValue)
+weekJumpDate.addEventListener('click', (ev) => {
+  ev.stopPropagation()
+  syncWeekJumpValue()
 })
 weekJumpDate.addEventListener('change', () => {
   if (!weekJumpDate.value) return
