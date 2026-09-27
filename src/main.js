@@ -128,7 +128,7 @@ function entryToRow(e) {
 
 // ── data loading ──
 async function loadEntries() {
-  const { data, error } = await supabase.from('entries').select('*').order('created_at', { ascending: true }).limit(800)
+  const { data, error } = await supabase.from('entries').select('*').order('created_at', { ascending: true }).limit(5000)
   if (error) { toast('Kon items niet laden.'); return }
   state.entries = data.map(rowToEntry)
   renderTasks(); renderWeek()
