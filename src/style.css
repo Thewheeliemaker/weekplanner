@@ -130,6 +130,11 @@ table.week-table { border-collapse: collapse; width: 100%; min-width: 620px; }
 .day-td:hover .day-add, .day-add:focus-visible { opacity: 1; }
 .day-add:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
 @media (pointer: coarse) { .day-add { opacity: 0.6; } }
+.week-table td:not(.day-td) { position: relative; min-height: 28px; padding-bottom: 22px; }
+.cell-add { position: absolute; bottom: 2px; right: 2px; width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--border); background: var(--surface); color: var(--ink-soft); font-size: 0.75rem; line-height: 1; cursor: pointer; padding: 0; opacity: 0; transition: opacity 0.15s; }
+.week-table td:not(.day-td):hover .cell-add, .cell-add:focus-visible { opacity: 1; }
+.cell-add:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+@media (pointer: coarse) { .cell-add { opacity: 0.5; } }
 .week-table td:not(.day-td), .week-table th:not(.day-th) { width: calc((100% - 62px) / var(--col-count, 5)); }
 .ci { display: flex; align-items: baseline; gap: 4px; font-size: 0.76rem; line-height: 1.35; white-space: nowrap; overflow: hidden; cursor: pointer; border-radius: 3px; padding: 1px 2px; margin: -1px -2px; }
 .ci:hover { background: var(--accent-soft); }

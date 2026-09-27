@@ -339,7 +339,7 @@ function renderWeek() {
         const t = showTimeForDay(e, dStr)
         return `<div class="ci" data-id="${esc(e.id)}" title="${esc(entryTooltip(e))}">${entryIconHtml(e, col)}<span class="ci-dot ${e.opFysiekBord ? 'on-bord' : 'pending'}" title="${e.opFysiekBord ? 'Staat op het bord' : 'Nog overzetten'}"></span>${t ? `<span class="ci-time mono">${esc(t)}</span>` : ''}<span class="ci-title">${esc(e.title)}</span>${entryAgeBadge(e, dStr)}${e.note ? '<svg class="ci-note" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>' : ''}<button class="ci-del" data-id="${esc(e.id)}" data-date="${esc(dStr)}" aria-label="Verwijderen">×</button></div>`
       }).join('')
-      return '<td>' + body + '</td>'
+      return `<td>${body}<button class="cell-add" data-date="${esc(dStr)}" data-dayname="${esc(dName)}" data-who="${esc(col)}">+</button></td>`
     }).join('')
     return `<tr class="${isToday ? 'is-today' : ''}"><td class="day-td"><div class="day-abbr">${DAY_ABBR[dName]}</div><div class="day-num mono">${shortDate(day)}</div><button class="day-add" data-date="${esc(dStr)}" data-dayname="${esc(dName)}" aria-label="Item toevoegen op ${DAY_LABELS[dName]}">+</button></td>${tds}</tr>`
   }).join('')
@@ -355,6 +355,7 @@ function renderWeek() {
   table.querySelectorAll('.ci-del').forEach(btn => btn.addEventListener('click', ev => { ev.stopPropagation(); handleEntryDeleteClick(btn.dataset.id, btn.dataset.date) }))
   table.querySelectorAll('.ci[data-id]').forEach(div => div.addEventListener('click', () => openEditEntry(div.dataset.id)))
   table.querySelectorAll('.day-add').forEach(btn => btn.addEventListener('click', () => openItemForDay(btn.dataset.date, btn.dataset.dayname)))
+  table.querySelectorAll('.cell-add').forEach(btn => btn.addEventListener('click', () => openItemForDay(btn.dataset.date, btn.dataset.dayname, btn.dataset.who)))
 
   renderWeekAgenda(days, todayStr)
 }
@@ -456,14 +457,14 @@ const itemPanel = $('itemPanel'), groceryPanel = $('groceryPanel'), dinnerPanel 
 function hideAllPanels() { itemPanel.hidden = true; groceryPanel.hidden = true; dinnerPanel.hidden = true }
 $('btnNewItem').addEventListener('click', () => { const was = itemPanel.hidden; hideAllPanels(); state.addForDate = null; state.editId = null; if (was) { resetItemPanel(); itemPanel.hidden = false } })
 
-function openItemForDay(dateStr, dayName) {
+function openItemForDay(dateStr, dayName, who) {
   hideAllPanels()
-  state.addForDate = { date: dateStr, dayName }
+  state.addForDate = { date: dateStr, dayName, who: who || null }
   resetItemPanel()
   itemPanel.hidden = false
   itemPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   const el = $('quick-text')
-  el.placeholder = 'Item voor ' + DAY_LABELS[dayName] + '…'
+  el.placeholder = who ? 'Item voor ' + who + ' op ' + DAY_LABELS[dayName] + '…' : 'Item voor ' + DAY_LABELS[dayName] + '…'
 }
 function openEditEntry(id) {
   const e = state.entries.find(x => x.id === id)
@@ -503,10 +504,12 @@ $('quick-manual').addEventListener('click', () => {
   if (state.addForDate) {
     $('typeOnce').click()
     $('f-date').value = state.addForDate.date
+    if (state.addForDate.who) setWho(state.addForDate.who)
+    else if (state.currentUser) setWho(state.currentUser)
   } else {
     $('typeWeekly').click()
+    if (state.currentUser) setWho(state.currentUser)
   }
-  if (state.currentUser) setWho(state.currentUser)
   $('quickAddBox').hidden = true; $('itemForm').hidden = false; focusSoon('f-title')
 })
 
@@ -521,7 +524,10 @@ $('quick-parse').addEventListener('click', async () => {
   btn.disabled = true; btn.textContent = 'Bezig…'
   try {
     const parseBody = { text, password: localStorage.getItem('wp-auth') }
-    if (state.addForDate) parseBody.contextDate = state.addForDate.date
+    if (state.addForDate) {
+      parseBody.contextDate = state.addForDate.date
+      if (state.addForDate.who) parseBody.contextWho = state.addForDate.who
+    }
     if (state.currentUser) parseBody.currentUser = state.currentUser
     const resp = await fetch('/api/parse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(parseBody) })
     if (!resp.ok) throw new Error('API error')
