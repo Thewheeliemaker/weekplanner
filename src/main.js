@@ -8,7 +8,7 @@ const DAY_ORDER = ['maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'za
 const DAY_LABELS = { maandag: 'Maandag', dinsdag: 'Dinsdag', woensdag: 'Woensdag', donderdag: 'Donderdag', vrijdag: 'Vrijdag', zaterdag: 'Zaterdag', zondag: 'Zondag' }
 const DAY_ABBR = { maandag: 'Ma', dinsdag: 'Di', woensdag: 'Wo', donderdag: 'Do', vrijdag: 'Vr', zaterdag: 'Za', zondag: 'Zo' }
 
-const state = { entries: [], groceries: [], favorites: [], addType: 'wekelijks', weekOffset: 0, filterWho: null, currentUser: null, addForDate: null, editId: null }
+const state = { entries: [], groceries: [], favorites: [], addType: 'wekelijks', weekOffset: 0, filterWho: null, currentUser: null, addForDate: null, editId: null, weather: null }
 
 async function dbWrite(action, table, { data, id, ids } = {}) {
   const password = localStorage.getItem('wp-auth')
@@ -78,6 +78,68 @@ function showChoiceModal(title, message, choices) {
     $('modal-cancel').addEventListener('click', () => finish(null))
     modalOverlay.addEventListener('click', function oc(ev) { if (ev.target === modalOverlay) { modalOverlay.removeEventListener('click', oc); finish(null) } })
   })
+}
+
+// ── weather ──
+const WEATHER_ICON = {
+  0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️',
+  45: '🌫️', 48: '🌫️',
+  51: '🌦️', 53: '🌦️', 55: '🌧️',
+  56: '🌧️', 57: '🌧️',
+  61: '🌦️', 63: '🌧️', 65: '🌧️',
+  66: '🌧️', 67: '🌧️',
+  71: '🌨️', 73: '🌨️', 75: '❄️',
+  77: '❄️', 80: '🌦️', 81: '🌧️', 82: '🌧️',
+  85: '🌨️', 86: '🌨️',
+  95: '⛈️', 96: '⛈️', 99: '⛈️'
+}
+function weatherIcon(code) { return WEATHER_ICON[code] || '🌡️' }
+
+const weatherCache = { data: null, fetched: 0, weekStart: '' }
+
+async function fetchWeather(days) {
+  const startStr = ymd(days[0])
+  const now = Date.now()
+  try {
+    const cached = JSON.parse(localStorage.getItem('wp-weather') || 'null')
+    if (cached && cached.weekStart === startStr && (now - cached.fetched) < 3 * 3600000) {
+      weatherCache.data = cached.data; weatherCache.fetched = cached.fetched; weatherCache.weekStart = startStr
+      return cached.data
+    }
+  } catch {}
+  const endStr = ymd(days[6])
+  const url = 'https://api.open-meteo.com/v1/forecast?latitude=52.09&longitude=5.12&daily=weather_code,precipitation_sum,precipitation_probability_max,sunshine_duration&timezone=Europe/Amsterdam&start_date=' + startStr + '&end_date=' + endStr
+  try {
+    const resp = await fetch(url)
+    if (!resp.ok) return null
+    const json = await resp.json()
+    const result = {}
+    const d = json.daily
+    for (let i = 0; i < d.time.length; i++) {
+      result[d.time[i]] = {
+        code: d.weather_code[i],
+        rain: Math.round(d.precipitation_sum[i] * 10) / 10,
+        rainPct: d.precipitation_probability_max[i],
+        sun: Math.round((d.sunshine_duration[i] || 0) / 3600 * 10) / 10
+      }
+    }
+    const store = { data: result, fetched: now, weekStart: startStr }
+    try { localStorage.setItem('wp-weather', JSON.stringify(store)) } catch {}
+    weatherCache.data = result; weatherCache.fetched = now; weatherCache.weekStart = startStr
+    return result
+  } catch { return null }
+}
+
+function weatherHtml(dateStr, weather) {
+  if (!weather || !weather[dateStr]) return ''
+  const w = weather[dateStr]
+  return `<div class="weather-info"><span class="weather-icon">${weatherIcon(w.code)}</span><span class="weather-detail">${w.rainPct}% · ${w.rain}mm</span><span class="weather-detail">☀ ${w.sun}u</span></div>`
+}
+
+function weatherChipHtml(dateStr, weather) {
+  if (!weather || !weather[dateStr]) return ''
+  const w = weather[dateStr]
+  return `<span class="weather-chip">${weatherIcon(w.code)} ${w.rainPct}% ${w.rain}mm ☀${w.sun}u</span>`
 }
 
 // ── date helpers ──
@@ -341,7 +403,8 @@ function renderWeek() {
       }).join('')
       return `<td>${body}<button class="cell-add" data-date="${esc(dStr)}" data-dayname="${esc(dName)}" data-who="${esc(col)}">+</button></td>`
     }).join('')
-    return `<tr class="${isToday ? 'is-today' : ''}"><td class="day-td"><div class="day-abbr">${DAY_ABBR[dName]}</div><div class="day-num mono">${shortDate(day)}</div><button class="day-add" data-date="${esc(dStr)}" data-dayname="${esc(dName)}" aria-label="Item toevoegen op ${DAY_LABELS[dName]}">+</button></td>${tds}</tr>`
+    const wHtml = state.weather ? weatherHtml(dStr, state.weather) : ''
+    return `<tr class="${isToday ? 'is-today' : ''}"><td class="day-td"><div class="day-abbr">${DAY_ABBR[dName]}</div><div class="day-num mono">${shortDate(day)}</div>${wHtml}<button class="day-add" data-date="${esc(dStr)}" data-dayname="${esc(dName)}" aria-label="Item toevoegen op ${DAY_LABELS[dName]}">+</button></td>${tds}</tr>`
   }).join('')
 
   const table = $('weekTable')
@@ -358,6 +421,22 @@ function renderWeek() {
   table.querySelectorAll('.cell-add').forEach(btn => btn.addEventListener('click', () => openItemForDay(btn.dataset.date, btn.dataset.dayname, btn.dataset.who)))
 
   renderWeekAgenda(days, todayStr)
+  loadWeather(days)
+}
+
+let weatherLoading = false
+async function loadWeather(days) {
+  if (weatherLoading) return
+  const weekKey = ymd(days[0])
+  if (state.weather && weatherCache.weekStart === weekKey && (Date.now() - weatherCache.fetched) < 3 * 3600000) return
+  weatherLoading = true
+  const today = new Date()
+  const maxForecast = new Date(today); maxForecast.setDate(maxForecast.getDate() + 16)
+  if (days[0] > maxForecast || days[6] < today) { state.weather = null; weatherLoading = false; return }
+  const weather = await fetchWeather(days)
+  state.weather = weather
+  weatherLoading = false
+  if (weather) renderWeek()
 }
 
 function renderWeekAgenda(days, todayStr) {
@@ -374,7 +453,8 @@ function renderWeekAgenda(days, todayStr) {
           const chips = (e.category === 'eten' ? [] : names).map(n => chipHtml(n)).join('')
           return `<li class="agenda-item" data-id="${esc(e.id)}" title="${esc(entryTooltip(e))}">${entryIconHtml(e, names[0])}${chips}${t ? `<span class="agenda-time mono">${esc(t)}</span>` : ''}<span class="agenda-title">${esc(e.title)}</span>${entryAgeBadge(e, dStr)}${e.note ? '<svg class="ci-note" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>' : ''}<span class="ci-dot ${e.opFysiekBord ? 'on-bord' : 'pending'}"></span><button class="agenda-del" data-id="${esc(e.id)}" data-date="${esc(dStr)}" aria-label="Verwijderen">×</button></li>`
         }).join('')
-    return `<div class="agenda-day${isToday ? ' is-today' : ''}"><div class="agenda-day-head"><span class="agenda-day-name">${DAY_LABELS[dName]}</span><span class="agenda-day-date mono">${shortDate(day)}</span><button class="agenda-day-add" data-date="${esc(dStr)}" data-dayname="${esc(dName)}" aria-label="Item toevoegen">+</button></div><ul class="agenda-items">${itemsHtml}</ul></div>`
+    const wChip = state.weather ? weatherChipHtml(dStr, state.weather) : ''
+    return `<div class="agenda-day${isToday ? ' is-today' : ''}"><div class="agenda-day-head"><span class="agenda-day-name">${DAY_LABELS[dName]}</span><span class="agenda-day-date mono">${shortDate(day)}</span>${wChip}<button class="agenda-day-add" data-date="${esc(dStr)}" data-dayname="${esc(dName)}" aria-label="Item toevoegen">+</button></div><ul class="agenda-items">${itemsHtml}</ul></div>`
   }).join('')
   wrap.querySelectorAll('.agenda-del').forEach(btn => btn.addEventListener('click', ev => { ev.stopPropagation(); handleEntryDeleteClick(btn.dataset.id, btn.dataset.date) }))
   wrap.querySelectorAll('.agenda-item[data-id]').forEach(li => li.addEventListener('click', () => openEditEntry(li.dataset.id)))

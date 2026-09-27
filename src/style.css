@@ -120,12 +120,16 @@ input, select, textarea { font: inherit; color: inherit; }
 table.week-table { border-collapse: collapse; width: 100%; min-width: 620px; table-layout: fixed; }
 .week-table th, .week-table td { border: 1px solid var(--border); padding: 3px 6px; vertical-align: top; text-align: left; }
 .week-table thead th { background: var(--surface-2); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em; padding: 4px 6px; white-space: nowrap; }
-.week-table .day-th { position: sticky; left: 0; z-index: 2; background: var(--surface-2); width: 62px; }
-.week-table .day-td { position: sticky; left: 0; z-index: 1; background: var(--surface); width: 62px; min-width: 62px; box-shadow: 1px 0 0 var(--border); }
+.week-table .day-th { position: sticky; left: 0; z-index: 2; background: var(--surface-2); width: 85px; }
+.week-table .day-td { position: sticky; left: 0; z-index: 1; background: var(--surface); width: 85px; min-width: 85px; box-shadow: 1px 0 0 var(--border); }
 .week-table tr.is-today .day-td { background: var(--accent-soft); }
 .week-table tr.is-today td { background: var(--accent-soft); }
 .day-abbr { font-weight: 700; font-size: 0.78rem; }
 .day-num { font-size: 0.68rem; color: var(--ink-soft); }
+.weather-info { display: flex; flex-direction: column; align-items: center; gap: 0; margin-top: 2px; }
+.weather-icon { font-size: 1rem; line-height: 1.1; }
+.weather-detail { font-size: 0.58rem; color: var(--ink-soft); line-height: 1.2; white-space: nowrap; }
+.weather-chip { font-size: 0.65rem; color: var(--ink-soft); white-space: nowrap; margin-left: auto; margin-right: 4px; }
 .day-add { display: block; margin: 2px auto 0; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--border); background: var(--surface); color: var(--ink-soft); font-size: 0.85rem; line-height: 1; cursor: pointer; padding: 0; opacity: 0; transition: opacity 0.15s; }
 .day-td:hover .day-add, .day-add:focus-visible { opacity: 1; }
 .day-add:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
@@ -135,7 +139,7 @@ table.week-table { border-collapse: collapse; width: 100%; min-width: 620px; tab
 .week-table td:not(.day-td):hover .cell-add, .cell-add:focus-visible { opacity: 1; }
 .cell-add:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
 @media (pointer: coarse) { .cell-add { opacity: 0.5; } }
-.week-table td:not(.day-td), .week-table th:not(.day-th) { width: calc((100% - 62px) / var(--col-count, 5)); }
+.week-table td:not(.day-td), .week-table th:not(.day-th) { width: calc((100% - 85px) / var(--col-count, 5)); }
 .ci { display: flex; align-items: baseline; gap: 4px; font-size: 0.76rem; line-height: 1.35; white-space: nowrap; overflow: hidden; cursor: pointer; border-radius: 3px; padding: 1px 2px; margin: -1px -2px; }
 .ci:hover { background: var(--accent-soft); }
 .ci-title { overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
