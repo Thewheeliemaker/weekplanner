@@ -120,8 +120,8 @@ input, select, textarea { font: inherit; color: inherit; }
 table.week-table { border-collapse: collapse; width: 100%; min-width: 620px; table-layout: fixed; }
 .week-table th, .week-table td { border: 1px solid var(--border); padding: 3px 6px; vertical-align: top; text-align: left; }
 .week-table thead th { background: var(--surface-2); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em; padding: 4px 6px; white-space: nowrap; }
-.week-table .day-th { position: sticky; left: 0; z-index: 2; background: var(--surface-2); width: 130px; }
-.week-table .day-td { position: sticky; left: 0; z-index: 1; background: var(--surface); width: 130px; min-width: 130px; box-shadow: 1px 0 0 var(--border); }
+.week-table .day-th { position: sticky; left: 0; z-index: 2; background: var(--surface-2); width: 155px; }
+.week-table .day-td { position: sticky; left: 0; z-index: 1; background: var(--surface); width: 155px; min-width: 155px; box-shadow: 1px 0 0 var(--border); overflow: hidden; }
 .week-table tr.is-today .day-td { background: var(--accent-soft); }
 .week-table tr.is-today td { background: var(--accent-soft); }
 .day-head { display: flex; align-items: baseline; gap: 4px; }
@@ -139,7 +139,7 @@ table.week-table { border-collapse: collapse; width: 100%; min-width: 620px; tab
 .week-table td:not(.day-td):hover .cell-add, .cell-add:focus-visible { opacity: 1; }
 .cell-add:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
 @media (pointer: coarse) { .cell-add { opacity: 0.5; } }
-.week-table td:not(.day-td), .week-table th:not(.day-th) { width: calc((100% - 130px) / var(--col-count, 5)); }
+.week-table td:not(.day-td), .week-table th:not(.day-th) { width: calc((100% - 155px) / var(--col-count, 5)); }
 .ci { display: flex; align-items: baseline; gap: 4px; font-size: 0.76rem; line-height: 1.35; white-space: nowrap; overflow: hidden; cursor: pointer; border-radius: 3px; padding: 1px 2px; margin: -1px -2px; }
 .ci:hover { background: var(--accent-soft); }
 .ci-title { overflow: hidden; text-overflow: ellipsis; font-weight: 600; }

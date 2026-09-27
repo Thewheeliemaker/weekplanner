@@ -134,7 +134,7 @@ async function fetchWeather(days) {
 function weatherHtml(dateStr, weather) {
   if (!weather || !weather[dateStr]) return ''
   const w = weather[dateStr]
-  return `<div class="weather-row">${weatherIcon(w.code)} ${w.temp}° <span class="weather-sep">·</span> ${w.rainPct}% ${w.rain}mm <span class="weather-sep">·</span> ☀${w.sun}u</div>`
+  return `<div class="weather-row">${weatherIcon(w.code)} ${w.temp}° ${w.rainPct}% ${w.rain}mm ☀${w.sun}u</div>`
 }
 
 function weatherChipHtml(dateStr, weather) {
