@@ -108,7 +108,7 @@ async function fetchWeather(days) {
     }
   } catch {}
   const endStr = ymd(days[6])
-  const url = 'https://api.open-meteo.com/v1/forecast?latitude=52.09&longitude=5.12&daily=weather_code,precipitation_sum,precipitation_probability_max,sunshine_duration&timezone=Europe/Amsterdam&start_date=' + startStr + '&end_date=' + endStr
+  const url = 'https://api.open-meteo.com/v1/forecast?latitude=52.09&longitude=5.12&daily=weather_code,temperature_2m_max,precipitation_sum,precipitation_probability_max,sunshine_duration&timezone=Europe/Amsterdam&start_date=' + startStr + '&end_date=' + endStr
   try {
     const resp = await fetch(url)
     if (!resp.ok) return null
@@ -118,6 +118,7 @@ async function fetchWeather(days) {
     for (let i = 0; i < d.time.length; i++) {
       result[d.time[i]] = {
         code: d.weather_code[i],
+        temp: Math.round(d.temperature_2m_max[i]),
         rain: Math.round(d.precipitation_sum[i] * 10) / 10,
         rainPct: d.precipitation_probability_max[i],
         sun: Math.round((d.sunshine_duration[i] || 0) / 3600 * 10) / 10
@@ -133,13 +134,13 @@ async function fetchWeather(days) {
 function weatherHtml(dateStr, weather) {
   if (!weather || !weather[dateStr]) return ''
   const w = weather[dateStr]
-  return `<div class="weather-info"><span class="weather-icon">${weatherIcon(w.code)}</span><span class="weather-detail">${w.rainPct}% · ${w.rain}mm</span><span class="weather-detail">☀ ${w.sun}u</span></div>`
+  return `<div class="weather-row">${weatherIcon(w.code)} ${w.temp}° <span class="weather-sep">·</span> ${w.rainPct}% ${w.rain}mm <span class="weather-sep">·</span> ☀${w.sun}u</div>`
 }
 
 function weatherChipHtml(dateStr, weather) {
   if (!weather || !weather[dateStr]) return ''
   const w = weather[dateStr]
-  return `<span class="weather-chip">${weatherIcon(w.code)} ${w.rainPct}% ${w.rain}mm ☀${w.sun}u</span>`
+  return `<span class="weather-chip">${weatherIcon(w.code)} ${w.temp}° ${w.rainPct}% ${w.rain}mm ☀${w.sun}u</span>`
 }
 
 // ── date helpers ──
@@ -404,7 +405,7 @@ function renderWeek() {
       return `<td>${body}<button class="cell-add" data-date="${esc(dStr)}" data-dayname="${esc(dName)}" data-who="${esc(col)}">+</button></td>`
     }).join('')
     const wHtml = state.weather ? weatherHtml(dStr, state.weather) : ''
-    return `<tr class="${isToday ? 'is-today' : ''}"><td class="day-td"><div class="day-abbr">${DAY_ABBR[dName]}</div><div class="day-num mono">${shortDate(day)}</div>${wHtml}<button class="day-add" data-date="${esc(dStr)}" data-dayname="${esc(dName)}" aria-label="Item toevoegen op ${DAY_LABELS[dName]}">+</button></td>${tds}</tr>`
+    return `<tr class="${isToday ? 'is-today' : ''}"><td class="day-td"><div class="day-head"><span class="day-abbr">${DAY_ABBR[dName]}</span> <span class="day-num mono">${shortDate(day)}</span></div>${wHtml}<button class="day-add" data-date="${esc(dStr)}" data-dayname="${esc(dName)}" aria-label="Item toevoegen op ${DAY_LABELS[dName]}">+</button></td>${tds}</tr>`
   }).join('')
 
   const table = $('weekTable')
