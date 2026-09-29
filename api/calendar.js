@@ -8,10 +8,11 @@ function icsDate(iso, time) { const d = iso.replace(/-/g, ''); return time ? d +
 function icsEscape(s) { return s.replace(/[\\;,]/g, c => '\\' + c).replace(/\n/g, '\\n') }
 function addHour(t) { const [h, m] = t.split(':').map(Number); return pad((h + 1) % 24) + ':' + pad(m) }
 
-function nextOccurrence(weekday) {
-  const now = new Date(), target = DAY_IDX[weekday], current = now.getDay()
-  const diff = (target - current + 7) % 7 || 7
-  const d = new Date(now); d.setDate(now.getDate() + diff)
+function firstOccurrence(weekday, createdAt) {
+  const base = createdAt ? new Date(createdAt) : new Date()
+  const target = DAY_IDX[weekday], current = base.getDay()
+  const diff = (target - current + 7) % 7
+  const d = new Date(base); d.setDate(base.getDate() + diff)
   return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
 }
 
@@ -30,7 +31,7 @@ function buildICS(entries) {
       if (e.time) { lines.push('DTSTART;TZID=' + TZ + ':' + icsDate(e.date, e.time)); lines.push('DTEND;TZID=' + TZ + ':' + icsDate(e.date, addHour(e.time))) }
       else lines.push('DTSTART;VALUE=DATE:' + icsDate(e.date))
     } else if (e.type === 'wekelijks' && e.weekday) {
-      const ref = nextOccurrence(e.weekday)
+      const ref = firstOccurrence(e.weekday, e.created_at)
       if (e.time) { lines.push('DTSTART;TZID=' + TZ + ':' + icsDate(ref, e.time)); lines.push('DTEND;TZID=' + TZ + ':' + icsDate(ref, addHour(e.time))) }
       else lines.push('DTSTART;VALUE=DATE:' + icsDate(ref))
       let rrule = 'RRULE:FREQ=WEEKLY;BYDAY=' + DAY_TO_RRULE[e.weekday]
