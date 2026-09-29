@@ -596,7 +596,7 @@ function openDetailEntry(id, clickedEl, dateStr) {
   div.querySelector('.inline-detail-close').addEventListener('click', () => closeInlineDetail())
   div.querySelector('.inline-detail-edit').addEventListener('click', () => { closeInlineDetail(); openEditEntry(e.id) })
   div.querySelector('.inline-detail-delete').addEventListener('click', () => { closeInlineDetail(); handleEntryDeleteClick(e.id, dateStr || ymd(new Date())) })
-  document.addEventListener('click', function onOutside() { closeInlineDetail(); document.removeEventListener('click', onOutside) })
+  setTimeout(() => document.addEventListener('click', function onOutside() { closeInlineDetail(); document.removeEventListener('click', onOutside) }), 0)
   if (clickedEl) clickedEl.insertAdjacentElement('afterend', div)
   else document.body.appendChild(div)
   div.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
