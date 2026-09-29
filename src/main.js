@@ -570,11 +570,24 @@ function openItemForDay(dateStr, dayName, who) {
 }
 let _detailOutsideHandler = null
 function closeInlineDetail() {
-  const row = document.querySelector('.inline-detail-row')
-  if (row) row.remove()
-  else { const existing = document.querySelector('.inline-detail'); if (existing) existing.remove() }
+  const existing = document.querySelector('.detail-popover, .detail-inline')
+  if (existing) existing.remove()
   if (_detailOutsideHandler) { document.removeEventListener('click', _detailOutsideHandler); _detailOutsideHandler = null }
   state.detailId = null
+}
+
+function positionPopover(pop, anchor) {
+  document.body.appendChild(pop)
+  const ar = anchor.getBoundingClientRect()
+  const pr = pop.getBoundingClientRect()
+  let top = ar.bottom + 6
+  let left = ar.left
+  if (top + pr.height > window.innerHeight - 12) top = ar.top - pr.height - 6
+  if (top < 12) top = 12
+  if (left + pr.width > window.innerWidth - 12) left = window.innerWidth - pr.width - 12
+  if (left < 12) left = 12
+  pop.style.top = top + 'px'
+  pop.style.left = left + 'px'
 }
 
 function openDetailEntry(id, clickedEl, dateStr) {
@@ -591,34 +604,26 @@ function openDetailEntry(id, clickedEl, dateStr) {
   if (e.time) sched += ' om ' + e.time
   const who = (e.who || '').split(',').map(n => chipHtml(n.trim())).join(' ')
   const bday = e.birthYear ? '<div class="detail-muted">🎂 Geboortejaar ' + e.birthYear + '</div>' : ''
-  const note = e.note ? '<div class="inline-detail-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>' + esc(e.note) + '</div>' : ''
+  const note = e.note ? '<div class="detail-popover-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>' + esc(e.note) + '</div>' : ''
   const div = document.createElement('div')
-  div.className = 'inline-detail'
-  div.innerHTML = `<div class="inline-detail-head"><strong>${esc(e.title)}</strong><button class="inline-detail-close" aria-label="Inklappen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M18 15l-6-6-6 6"/></svg></button></div><div class="inline-detail-body">${who}<div class="detail-muted"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;vertical-align:-2px;margin-right:3px;opacity:0.6"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>${esc(sched)}</div>${note}${bday}</div><div class="inline-detail-actions"><button class="btn btn-primary btn-sm inline-detail-edit" data-id="${esc(e.id)}">Bewerken</button><button class="btn btn-ghost btn-sm inline-detail-delete" data-id="${esc(e.id)}" style="color:var(--danger)">Verwijderen</button></div>`
+  div.className = 'detail-popover'
+  div.innerHTML = `<div class="detail-popover-head"><strong>${esc(e.title)}</strong><button class="detail-popover-close" aria-label="Sluiten"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div><div class="detail-popover-body">${who}<div class="detail-muted"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;vertical-align:-2px;margin-right:3px;opacity:0.6"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>${esc(sched)}</div>${note}${bday}</div><div class="detail-popover-actions"><button class="btn btn-primary btn-sm detail-popover-edit" data-id="${esc(e.id)}">Bewerken</button><button class="btn btn-ghost btn-sm detail-popover-delete" data-id="${esc(e.id)}" style="color:var(--danger)">Verwijderen</button></div>`
   div.addEventListener('click', (ev) => ev.stopPropagation())
-  div.querySelector('.inline-detail-close').addEventListener('click', () => closeInlineDetail())
-  div.querySelector('.inline-detail-edit').addEventListener('click', () => { closeInlineDetail(); openEditEntry(e.id) })
-  div.querySelector('.inline-detail-delete').addEventListener('click', () => { closeInlineDetail(); handleEntryDeleteClick(e.id, dateStr || ymd(new Date())) })
+  div.querySelector('.detail-popover-close').addEventListener('click', () => closeInlineDetail())
+  div.querySelector('.detail-popover-edit').addEventListener('click', () => { closeInlineDetail(); openEditEntry(e.id) })
+  div.querySelector('.detail-popover-delete').addEventListener('click', () => { closeInlineDetail(); handleEntryDeleteClick(e.id, dateStr || ymd(new Date())) })
   _detailOutsideHandler = () => closeInlineDetail()
   setTimeout(() => document.addEventListener('click', _detailOutsideHandler), 0)
   const inTable = clickedEl && clickedEl.closest('.week-table')
   if (inTable) {
-    const tr = clickedEl.closest('tr')
-    const colCount = tr.children.length
-    const detailRow = document.createElement('tr')
-    detailRow.className = 'inline-detail-row'
-    const td = document.createElement('td')
-    td.colSpan = colCount
-    td.className = 'inline-detail-cell'
-    td.appendChild(div)
-    detailRow.appendChild(td)
-    tr.insertAdjacentElement('afterend', detailRow)
+    positionPopover(div, clickedEl)
   } else if (clickedEl) {
+    div.className = 'detail-inline'
     clickedEl.insertAdjacentElement('afterend', div)
+    div.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   } else {
     document.body.appendChild(div)
   }
-  div.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
 }
 
 function openEditEntry(id) {

@@ -291,33 +291,44 @@ table.week-table { border-collapse: collapse; width: 100%; min-width: 620px; tab
 .modal-actions { display: flex; flex-direction: column; gap: 8px; }
 .modal-actions .btn { width: 100%; justify-content: center; }
 
-.inline-detail {
-  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
-  padding: 10px 12px; margin: 4px 0; box-shadow: 0 2px 8px rgba(0,0,0,.08);
+.detail-popover {
+  position: fixed; z-index: 100;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 14px 16px; width: 280px; max-width: calc(100vw - 24px);
+  box-shadow: 0 4px 24px rgba(0,0,0,.14), 0 1px 4px rgba(0,0,0,.08);
   border-left: 3px solid var(--accent);
+  animation: popIn .15s ease-out;
 }
-.inline-detail-cell {
-  padding: 6px 10px !important; border: none !important;
-  background: var(--surface-2);
-}
-.inline-detail-cell .inline-detail {
-  margin: 0; border: none; border-left: 3px solid var(--accent);
-  box-shadow: none; border-radius: 8px; background: var(--surface);
-  max-width: 480px;
-}
-.inline-detail-head {
+@keyframes popIn { from { opacity: 0; transform: scale(.96) translateY(4px); } to { opacity: 1; transform: none; } }
+.detail-popover-head {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
 }
-.inline-detail-head strong { font-size: 0.92rem; }
-.inline-detail-close {
-  background: none; border: none; font-size: 1.2rem; cursor: pointer;
-  color: var(--ink-soft); padding: 0 4px; line-height: 1;
+.detail-popover-head strong { font-size: 0.95rem; }
+.detail-popover-close {
+  background: none; border: none; cursor: pointer;
+  color: var(--ink-soft); padding: 2px 4px; line-height: 1; border-radius: 4px;
 }
-.inline-detail-body { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; font-size: 0.85rem; }
-.inline-detail-body .detail-muted { color: var(--ink-soft); font-size: 0.82rem; }
-.inline-detail-note { font-size: 0.82rem; color: var(--ink-soft); background: var(--surface-2); border-radius: 6px; padding: 6px 8px; margin-top: 4px; display: flex; align-items: flex-start; gap: 4px; }
-.inline-detail-note svg { flex: none; opacity: 0.6; margin-top: 2px; }
-.inline-detail-actions { display: flex; gap: 6px; margin-top: 8px; }
+.detail-popover-close:hover { background: var(--surface-2); }
+.detail-popover-body { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; font-size: 0.85rem; }
+.detail-popover-body .detail-muted { color: var(--ink-soft); font-size: 0.82rem; }
+.detail-popover-note { font-size: 0.82rem; color: var(--ink-soft); background: var(--surface-2); border-radius: 6px; padding: 6px 8px; margin-top: 4px; display: flex; align-items: flex-start; gap: 4px; }
+.detail-popover-note svg { flex: none; opacity: 0.6; margin-top: 2px; }
+.detail-popover-actions { display: flex; gap: 6px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); }
+
+.detail-inline {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 12px 14px; margin: 6px 0; box-shadow: 0 2px 8px rgba(0,0,0,.08);
+  border-left: 3px solid var(--accent);
+}
+.detail-inline .detail-popover-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.detail-inline .detail-popover-head strong { font-size: 0.95rem; }
+.detail-inline .detail-popover-close { background: none; border: none; cursor: pointer; color: var(--ink-soft); padding: 2px 4px; line-height: 1; border-radius: 4px; }
+.detail-inline .detail-popover-close:hover { background: var(--surface-2); }
+.detail-inline .detail-popover-body { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; font-size: 0.85rem; }
+.detail-inline .detail-popover-body .detail-muted { color: var(--ink-soft); font-size: 0.82rem; }
+.detail-inline .detail-popover-note { font-size: 0.82rem; color: var(--ink-soft); background: var(--surface-2); border-radius: 6px; padding: 6px 8px; margin-top: 4px; display: flex; align-items: flex-start; gap: 4px; }
+.detail-inline .detail-popover-note svg { flex: none; opacity: 0.6; margin-top: 2px; }
+.detail-inline .detail-popover-actions { display: flex; gap: 6px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); }
 
 .status-legend { display: flex; gap: 14px; align-items: center; padding: 6px 8px; font-size: 0.72rem; color: var(--ink-soft); margin-top: 4px; }
 .legend-item { display: flex; align-items: center; gap: 4px; }
