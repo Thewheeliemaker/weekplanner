@@ -605,9 +605,12 @@ function openDetailEntry(id, clickedEl, dateStr) {
   const who = (e.who || '').split(',').map(n => chipHtml(n.trim())).join(' ')
   const bday = e.birthYear ? '<div class="detail-muted">🎂 Geboortejaar ' + e.birthYear + '</div>' : ''
   const note = e.note ? '<div class="detail-popover-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>' + esc(e.note) + '</div>' : ''
+  const inTable = clickedEl && clickedEl.closest('.week-table')
+  const closeIcon = inTable
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M18 6L6 18M6 6l12 12"/></svg>'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M18 15l-6-6-6 6"/></svg>'
   const div = document.createElement('div')
-  div.className = 'detail-popover'
-  const closeIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M18 15l-6-6-6 6"/></svg>'
+  div.className = inTable ? 'detail-popover' : 'detail-inline'
   div.innerHTML = `<div class="detail-popover-inner"><div class="detail-popover-head"><strong>${esc(e.title)}</strong><button class="detail-popover-close" aria-label="Sluiten">${closeIcon}</button></div><div class="detail-popover-body">${who}<div class="detail-muted"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;vertical-align:-2px;margin-right:3px;opacity:0.6"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>${esc(sched)}</div>${note}${bday}</div><div class="detail-popover-actions"><button class="btn btn-primary btn-sm detail-popover-edit" data-id="${esc(e.id)}">Bewerken</button><button class="btn btn-ghost btn-sm detail-popover-delete" data-id="${esc(e.id)}" style="color:var(--danger)">Verwijderen</button></div></div>`
   div.addEventListener('click', (ev) => ev.stopPropagation())
   div.querySelector('.detail-popover-close').addEventListener('click', () => closeInlineDetail())
@@ -615,11 +618,9 @@ function openDetailEntry(id, clickedEl, dateStr) {
   div.querySelector('.detail-popover-delete').addEventListener('click', () => { closeInlineDetail(); handleEntryDeleteClick(e.id, dateStr || ymd(new Date())) })
   _detailOutsideHandler = () => closeInlineDetail()
   setTimeout(() => document.addEventListener('click', _detailOutsideHandler), 0)
-  const inTable = clickedEl && clickedEl.closest('.week-table')
   if (inTable) {
     positionPopover(div, clickedEl)
   } else if (clickedEl) {
-    div.className = 'detail-inline'
     clickedEl.insertAdjacentElement('afterend', div)
     div.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   } else {
