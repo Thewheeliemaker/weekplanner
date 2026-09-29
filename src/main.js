@@ -8,7 +8,17 @@ const DAY_ORDER = ['maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'za
 const DAY_LABELS = { maandag: 'Maandag', dinsdag: 'Dinsdag', woensdag: 'Woensdag', donderdag: 'Donderdag', vrijdag: 'Vrijdag', zaterdag: 'Zaterdag', zondag: 'Zondag' }
 const DAY_ABBR = { maandag: 'Ma', dinsdag: 'Di', woensdag: 'Wo', donderdag: 'Do', vrijdag: 'Vr', zaterdag: 'Za', zondag: 'Zo' }
 
-const state = { entries: [], groceries: [], favorites: [], addType: 'wekelijks', weekOffset: 0, filterWho: null, currentUser: null, addForDate: null, editId: null, weather: null }
+const state = { entries: [], groceries: [], favorites: [], addType: 'wekelijks', weekOffset: 0, filterWho: null, currentUser: null, addForDate: null, editId: null, detailId: null, weather: null }
+
+// ── preferences ──
+function loadPrefs() {
+  try { return JSON.parse(localStorage.getItem('wp-prefs') || '{}') } catch { return {} }
+}
+function savePref(key, val) {
+  const p = loadPrefs(); p[key] = val
+  try { localStorage.setItem('wp-prefs', JSON.stringify(p)) } catch {}
+}
+function pref(key, def) { const v = loadPrefs()[key]; return v === undefined ? def : v }
 
 async function dbWrite(action, table, { data, id, ids } = {}) {
   const password = localStorage.getItem('wp-auth')
@@ -304,6 +314,8 @@ function whoList(e) { return e.who ? e.who.split(',').map(s => s.trim()) : [] }
 function entryHasWho(e, col) { return whoList(e).includes(col) }
 
 // ── week table ──
+function isBirthday(e) { return e.type === 'jaarlijks' && e.birthYear }
+function visibleEntries() { return pref('showBirthdays', true) ? state.entries : state.entries.filter(e => !isBirthday(e)) }
 function entryMatchesDay(e, dName, dStr) {
   if (e.skipDates && e.skipDates.indexOf(dStr) >= 0) return false
   if (e.type === 'eenmalig') return e.date === dStr
@@ -396,7 +408,7 @@ function renderWeek() {
   const rows = days.map(day => {
     const dName = dayNameOf(day), dStr = ymd(day), isToday = dStr === todayStr
     const tds = visibleCols.map(col => {
-      const items = state.entries.filter(e => entryHasWho(e, col) && entryMatchesDay(e, dName, dStr))
+      const items = visibleEntries().filter(e => entryHasWho(e, col) && entryMatchesDay(e, dName, dStr))
         .sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'))
       const body = items.map(e => {
         const t = showTimeForDay(e, dStr)
@@ -417,7 +429,7 @@ function renderWeek() {
     th.addEventListener('click', () => { state.filterWho = state.filterWho === th.dataset.col ? null : th.dataset.col; renderWeek() })
   })
   table.querySelectorAll('.ci-del').forEach(btn => btn.addEventListener('click', ev => { ev.stopPropagation(); handleEntryDeleteClick(btn.dataset.id, btn.dataset.date) }))
-  table.querySelectorAll('.ci[data-id]').forEach(div => div.addEventListener('click', () => openEditEntry(div.dataset.id)))
+  table.querySelectorAll('.ci[data-id]').forEach(div => div.addEventListener('click', () => openDetailEntry(div.dataset.id)))
   table.querySelectorAll('.day-add').forEach(btn => btn.addEventListener('click', () => openItemForDay(btn.dataset.date, btn.dataset.dayname)))
   table.querySelectorAll('.cell-add').forEach(btn => btn.addEventListener('click', () => openItemForDay(btn.dataset.date, btn.dataset.dayname, btn.dataset.who)))
 
@@ -427,6 +439,7 @@ function renderWeek() {
 
 let weatherLoading = false
 async function loadWeather(days) {
+  if (!pref('showWeather', true)) { state.weather = null; return }
   if (weatherLoading) return
   const weekKey = ymd(days[0])
   if (state.weather && weatherCache.weekStart === weekKey && (Date.now() - weatherCache.fetched) < 3 * 3600000) return
@@ -444,7 +457,7 @@ function renderWeekAgenda(days, todayStr) {
   const wrap = $('weekAgenda'); if (!wrap) return
   wrap.innerHTML = days.map(day => {
     const dName = dayNameOf(day), dStr = ymd(day), isToday = dStr === todayStr
-    const items = state.entries.filter(e => entryMatchesDay(e, dName, dStr))
+    const items = visibleEntries().filter(e => entryMatchesDay(e, dName, dStr))
       .sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'))
     const itemsHtml = items.length === 0
       ? '<li class="agenda-empty">Niets gepland</li>'
@@ -458,7 +471,7 @@ function renderWeekAgenda(days, todayStr) {
     return `<div class="agenda-day${isToday ? ' is-today' : ''}"><div class="agenda-day-head"><span class="agenda-day-name">${DAY_LABELS[dName]}</span><span class="agenda-day-date mono">${shortDate(day)}</span>${wChip}<button class="agenda-day-add" data-date="${esc(dStr)}" data-dayname="${esc(dName)}" aria-label="Item toevoegen">+</button></div><ul class="agenda-items">${itemsHtml}</ul></div>`
   }).join('')
   wrap.querySelectorAll('.agenda-del').forEach(btn => btn.addEventListener('click', ev => { ev.stopPropagation(); handleEntryDeleteClick(btn.dataset.id, btn.dataset.date) }))
-  wrap.querySelectorAll('.agenda-item[data-id]').forEach(li => li.addEventListener('click', () => openEditEntry(li.dataset.id)))
+  wrap.querySelectorAll('.agenda-item[data-id]').forEach(li => li.addEventListener('click', () => openDetailEntry(li.dataset.id)))
   wrap.querySelectorAll('.agenda-day-add').forEach(btn => btn.addEventListener('click', () => openItemForDay(btn.dataset.date, btn.dataset.dayname)))
 }
 
@@ -520,8 +533,9 @@ document.querySelectorAll('.tab').forEach(btn => {
   btn.addEventListener('click', () => {
     const view = btn.dataset.view
     document.querySelectorAll('.tab').forEach(b => { b.classList.toggle('is-active', b === btn); b.setAttribute('aria-selected', b === btn ? 'true' : 'false') })
-    ;['week', 'groceries', 'board'].forEach(v => $('view-' + v).hidden = v !== view)
+    ;['week', 'groceries', 'board', 'profile'].forEach(v => $('view-' + v).hidden = v !== view)
     if (view === 'board') markNewAsSeen()
+    if (view === 'profile') $('profileUser').textContent = state.currentUser || '—'
   })
 })
 
@@ -538,8 +552,8 @@ function resetItemPanel() {
   focusSoon('quick-text')
 }
 
-const itemPanel = $('itemPanel'), groceryPanel = $('groceryPanel'), dinnerPanel = $('dinnerPanel'), photoPanel = $('photoPanel')
-function hideAllPanels() { itemPanel.hidden = true; groceryPanel.hidden = true; dinnerPanel.hidden = true }
+const itemPanel = $('itemPanel'), groceryPanel = $('groceryPanel'), dinnerPanel = $('dinnerPanel'), photoPanel = $('photoPanel'), detailPanel = $('itemDetailPanel')
+function hideAllPanels() { itemPanel.hidden = true; groceryPanel.hidden = true; dinnerPanel.hidden = true; detailPanel.hidden = true }
 $('btnNewItem').addEventListener('click', () => { const was = itemPanel.hidden; hideAllPanels(); state.addForDate = null; state.editId = null; if (was) { resetItemPanel(); itemPanel.hidden = false } })
 
 function openItemForDay(dateStr, dayName, who) {
@@ -551,6 +565,29 @@ function openItemForDay(dateStr, dayName, who) {
   const el = $('quick-text')
   el.placeholder = who ? 'Item voor ' + who + ' op ' + DAY_LABELS[dayName] + '…' : 'Item voor ' + DAY_LABELS[dayName] + '…'
 }
+function openDetailEntry(id) {
+  const e = state.entries.find(x => x.id === id)
+  if (!e) return
+  hideAllPanels()
+  state.detailId = id
+  $('detail-title').textContent = e.title
+  $('detail-who').innerHTML = (e.who || '').split(',').map(n => chipHtml(n.trim())).join(' ')
+  const TYPE_LABELS = { wekelijks: 'Wekelijks', jaarlijks: 'Jaarlijks', eenmalig: 'Eenmalig', periode: 'Periode' }
+  let sched = TYPE_LABELS[e.type] || e.type
+  if (e.weekday) sched += ' · ' + DAY_LABELS[e.weekday]
+  if (e.date) sched += ' · ' + fmtDateFull(e.date)
+  if (e.endDate) sched += ' t/m ' + fmtDateFull(e.endDate)
+  if (e.time) sched += ' om ' + e.time
+  $('detail-schedule').textContent = sched
+  $('detail-note').textContent = e.note || ''
+  $('detail-note').hidden = !e.note
+  const bday = e.birthYear ? '🎂 Geboortejaar ' + e.birthYear : ''
+  $('detail-birthday').textContent = bday
+  $('detail-birthday').hidden = !bday
+  detailPanel.hidden = false
+  detailPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+}
+
 function openEditEntry(id) {
   const e = state.entries.find(x => x.id === id)
   if (!e) return
@@ -578,9 +615,11 @@ function openEditEntry(id) {
   $('f-submit').textContent = 'Opslaan'
   $('f-back').hidden = true
   itemPanel.hidden = false
-  focusSoon('f-title')
+  itemPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
 }
 
+$('detail-close').addEventListener('click', () => detailPanel.hidden = true)
+$('detail-edit').addEventListener('click', () => { if (state.detailId) openEditEntry(state.detailId) })
 $('quick-cancel').addEventListener('click', () => itemPanel.hidden = true)
 $('f-cancel').addEventListener('click', () => itemPanel.hidden = true)
 $('f-back').addEventListener('click', () => { $('itemForm').hidden = true; $('quickAddBox').hidden = false; focusSoon('quick-text') })
@@ -963,6 +1002,13 @@ if (pushDismissBtn) pushDismissBtn.addEventListener('click', () => {
   if (pushPromptEl) pushPromptEl.hidden = true
   try { localStorage.setItem('wp-push-dismissed', '1') } catch {}
 })
+
+// ── profile prefs ──
+const prefWeather = $('pref-weather'), prefBirthdays = $('pref-birthdays')
+prefWeather.checked = pref('showWeather', true)
+prefBirthdays.checked = pref('showBirthdays', true)
+prefWeather.addEventListener('change', () => { savePref('showWeather', prefWeather.checked); state.weather = null; renderWeek() })
+prefBirthdays.addEventListener('change', () => { savePref('showBirthdays', prefBirthdays.checked); renderWeek() })
 
 // ── init ──
 async function init() {

@@ -32,6 +32,7 @@
           <button class="tab is-active" data-view="week" role="tab" aria-selected="true">Week</button>
           <button class="tab" data-view="groceries" role="tab" aria-selected="false">Boodschappen</button>
           <button class="tab tab-new" data-view="board" role="tab" aria-selected="false">Nieuw <span class="tab-badge" id="newBadge" hidden></span></button>
+          <button class="tab" data-view="profile" role="tab" aria-selected="false">Profiel</button>
         </nav>
       </header>
 
@@ -129,6 +130,19 @@
               </form>
             </div>
 
+            <div class="add-panel" id="itemDetailPanel" hidden>
+              <div class="panel-head-row"><h3 id="detail-title"></h3><button type="button" class="icon-btn" id="detail-close" aria-label="Sluiten"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"></path></svg></button></div>
+              <div class="detail-body">
+                <div id="detail-who" class="detail-row"></div>
+                <div id="detail-schedule" class="detail-row detail-muted"></div>
+                <div id="detail-note" class="detail-row detail-muted"></div>
+                <div id="detail-birthday" class="detail-row"></div>
+              </div>
+              <div class="form-actions" style="margin-top:10px;">
+                <button type="button" class="btn btn-primary btn-sm" id="detail-edit">Bewerken</button>
+              </div>
+            </div>
+
             <div class="add-panel" id="groceryPanel" hidden>
               <h3>Boodschap toevoegen</h3>
               <form id="groceryQuickForm" class="grocery-quick-form">
@@ -200,6 +214,16 @@
             </div>
             <ul id="taskList" class="task-list"></ul>
             <p id="taskEmpty" class="empty-note" hidden>Niets te doen — het bord is bij.</p>
+          </div>
+        </section>
+        <section class="view" id="view-profile" hidden>
+          <div class="panel">
+            <h2>Profiel</h2>
+            <p class="panel-sub">Ingelogd als <strong id="profileUser">—</strong></p>
+            <div class="settings-group">
+              <label class="setting-toggle"><input type="checkbox" id="pref-weather" checked /><span>Weer tonen bij dagen</span></label>
+              <label class="setting-toggle"><input type="checkbox" id="pref-birthdays" checked /><span>Verjaardagen tonen in weekoverzicht</span></label>
+            </div>
           </div>
         </section>
       </main>
