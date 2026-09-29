@@ -296,6 +296,15 @@ table.week-table { border-collapse: collapse; width: 100%; min-width: 620px; tab
   padding: 10px 12px; margin: 4px 0; box-shadow: 0 2px 8px rgba(0,0,0,.08);
   border-left: 3px solid var(--accent);
 }
+.inline-detail-cell {
+  padding: 6px 10px !important; border: none !important;
+  background: var(--surface-2);
+}
+.inline-detail-cell .inline-detail {
+  margin: 0; border: none; border-left: 3px solid var(--accent);
+  box-shadow: none; border-radius: 8px; background: var(--surface);
+  max-width: 480px;
+}
 .inline-detail-head {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
 }

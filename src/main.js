@@ -570,8 +570,9 @@ function openItemForDay(dateStr, dayName, who) {
 }
 let _detailOutsideHandler = null
 function closeInlineDetail() {
-  const existing = document.querySelector('.inline-detail')
-  if (existing) existing.remove()
+  const row = document.querySelector('.inline-detail-row')
+  if (row) row.remove()
+  else { const existing = document.querySelector('.inline-detail'); if (existing) existing.remove() }
   if (_detailOutsideHandler) { document.removeEventListener('click', _detailOutsideHandler); _detailOutsideHandler = null }
   state.detailId = null
 }
@@ -600,8 +601,23 @@ function openDetailEntry(id, clickedEl, dateStr) {
   div.querySelector('.inline-detail-delete').addEventListener('click', () => { closeInlineDetail(); handleEntryDeleteClick(e.id, dateStr || ymd(new Date())) })
   _detailOutsideHandler = () => closeInlineDetail()
   setTimeout(() => document.addEventListener('click', _detailOutsideHandler), 0)
-  if (clickedEl) clickedEl.insertAdjacentElement('afterend', div)
-  else document.body.appendChild(div)
+  const inTable = clickedEl && clickedEl.closest('.week-table')
+  if (inTable) {
+    const tr = clickedEl.closest('tr')
+    const colCount = tr.children.length
+    const detailRow = document.createElement('tr')
+    detailRow.className = 'inline-detail-row'
+    const td = document.createElement('td')
+    td.colSpan = colCount
+    td.className = 'inline-detail-cell'
+    td.appendChild(div)
+    detailRow.appendChild(td)
+    tr.insertAdjacentElement('afterend', detailRow)
+  } else if (clickedEl) {
+    clickedEl.insertAdjacentElement('afterend', div)
+  } else {
+    document.body.appendChild(div)
+  }
   div.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
 }
 
