@@ -568,9 +568,11 @@ function openItemForDay(dateStr, dayName, who) {
   const el = $('quick-text')
   el.placeholder = who ? 'Item voor ' + who + ' op ' + DAY_LABELS[dayName] + '…' : 'Item voor ' + DAY_LABELS[dayName] + '…'
 }
+let _detailOutsideHandler = null
 function closeInlineDetail() {
   const existing = document.querySelector('.inline-detail')
   if (existing) existing.remove()
+  if (_detailOutsideHandler) { document.removeEventListener('click', _detailOutsideHandler); _detailOutsideHandler = null }
   state.detailId = null
 }
 
@@ -596,7 +598,8 @@ function openDetailEntry(id, clickedEl, dateStr) {
   div.querySelector('.inline-detail-close').addEventListener('click', () => closeInlineDetail())
   div.querySelector('.inline-detail-edit').addEventListener('click', () => { closeInlineDetail(); openEditEntry(e.id) })
   div.querySelector('.inline-detail-delete').addEventListener('click', () => { closeInlineDetail(); handleEntryDeleteClick(e.id, dateStr || ymd(new Date())) })
-  setTimeout(() => document.addEventListener('click', function onOutside() { closeInlineDetail(); document.removeEventListener('click', onOutside) }), 0)
+  _detailOutsideHandler = () => closeInlineDetail()
+  setTimeout(() => document.addEventListener('click', _detailOutsideHandler), 0)
   if (clickedEl) clickedEl.insertAdjacentElement('afterend', div)
   else document.body.appendChild(div)
   div.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
