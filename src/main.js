@@ -826,50 +826,84 @@ $('dinnerQuickForm').addEventListener('submit', async (ev) => {
   toast('Avondeten toegevoegd.'); $('d-title').value = ''; $('d-note').value = ''; dinnerPanel.hidden = true; loadEntries()
 })
 
-// ── photo OCR ──
-$('btnPhoto').addEventListener('click', () => { photoPanel.hidden = !photoPanel.hidden })
+// ── rooster scan ──
+$('btnPhoto').addEventListener('click', () => {
+  if (photoPanel.hidden) {
+    const sel = $('scan-who')
+    sel.innerHTML = COLUMNS.map(c => '<option value="' + esc(c) + '"' + (c === state.currentUser ? ' selected' : '') + '>' + esc(c) + '</option>').join('')
+  }
+  photoPanel.hidden = !photoPanel.hidden
+})
 $('photo-cancel').addEventListener('click', () => { photoPanel.hidden = true; $('photo-input').value = ''; $('photo-preview').hidden = true; $('photo-results').hidden = true; $('photo-scan').hidden = true })
+
+function loadImagePreview(dataUrl) {
+  $('photo-img').src = dataUrl; $('photo-preview').hidden = false; $('photo-scan').hidden = false; $('photo-status').textContent = ''
+}
+
+$('scan-paste').addEventListener('click', async () => {
+  try {
+    const items = await navigator.clipboard.read()
+    for (const item of items) {
+      const imgType = item.types.find(t => t.startsWith('image/'))
+      if (imgType) {
+        const blob = await item.getType(imgType)
+        const reader = new FileReader()
+        reader.onload = () => loadImagePreview(reader.result)
+        reader.readAsDataURL(blob)
+        return
+      }
+    }
+    toast('Geen afbeelding op het klembord.')
+  } catch (e) {
+    toast('Kan klembord niet lezen. Gebruik "Kies bestand".')
+  }
+})
 
 $('photo-input').addEventListener('change', (ev) => {
   const file = ev.target.files[0]
   if (!file) return
   const reader = new FileReader()
-  reader.onload = () => { $('photo-img').src = reader.result; $('photo-preview').hidden = false; $('photo-scan').hidden = false; $('photo-status').textContent = '' }
+  reader.onload = () => loadImagePreview(reader.result)
   reader.readAsDataURL(file)
 })
 
 $('photo-scan').addEventListener('click', async () => {
-  const file = $('photo-input').files[0]
-  if (!file) { toast('Kies eerst een foto.'); return }
+  const imgSrc = $('photo-img').src
+  if (!imgSrc || !imgSrc.startsWith('data:')) { toast('Plak of kies eerst een screenshot.'); return }
+  const who = $('scan-who').value
   const btn = $('photo-scan')
-  btn.disabled = true; btn.textContent = 'Bezig met herkennen…'; $('photo-status').textContent = 'Even geduld, AI leest de foto…'
+  btn.disabled = true; btn.textContent = 'Bezig met herkennen…'; $('photo-status').textContent = 'Even geduld, AI leest het rooster…'
   try {
-    const dataUrl = $('photo-img').src
-    const [header, base64] = dataUrl.split(',')
+    const [header, base64] = imgSrc.split(',')
     const mimeType = header.match(/:(.*?);/)[1]
-    const resp = await fetch('/api/ocr', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageBase64: base64, mimeType, password: localStorage.getItem('wp-auth') }) })
+    const resp = await fetch('/api/ocr', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageBase64: base64, mimeType, who, password: localStorage.getItem('wp-auth') }) })
     if (!resp.ok) throw new Error('API error')
     const data = await resp.json()
     $('photo-status').textContent = data.summary || 'Klaar.'
     const entries = data.entries || []
-    if (entries.length === 0) { $('photo-results').innerHTML = '<p class="panel-sub">Geen items gevonden op de foto.</p>'; $('photo-results').hidden = false; return }
-    $('photo-results').innerHTML = '<p class="panel-sub" style="margin-bottom:6px">Gevonden items — klik om toe te voegen:</p>' +
-      entries.map((e, i) => '<button type="button" class="btn btn-ghost btn-sm photo-add-entry" data-idx="' + i + '" style="margin:2px">' + esc(e.title) + ' (' + esc(e.who || 'Algemeen') + ')' + (e.time ? ' ' + esc(e.time) : '') + '</button>').join('')
+    if (entries.length === 0) { $('photo-results').innerHTML = '<p class="panel-sub">Geen diensten gevonden.</p>'; $('photo-results').hidden = false; return }
+    $('photo-results').innerHTML = '<p class="panel-sub" style="margin-bottom:6px">Gevonden diensten:</p>' +
+      entries.map((e, i) => '<label class="scan-entry" style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:0.85rem"><input type="checkbox" checked data-idx="' + i + '" class="scan-check" /><span>' + esc(e.date || '') + '</span><strong>' + esc(e.time || '') + (e.end_time ? '–' + esc(e.end_time) : '') + '</strong><span style="color:var(--ink-soft)">' + esc(e.title || 'Werk') + '</span></label>').join('') +
+      '<div style="margin-top:8px"><button type="button" class="btn btn-primary btn-sm" id="scan-add-all">Geselecteerde toevoegen</button></div>'
     $('photo-results').hidden = false
-    $('photo-results').querySelectorAll('.photo-add-entry').forEach(b => {
-      b.addEventListener('click', async () => {
-        const e = entries[parseInt(b.dataset.idx)]
-        const row = { title: e.title, who: e.who || 'Algemeen', type: e.type || 'eenmalig', weekday: e.weekday || null, date: e.date || null, end_date: e.end_date || null, time: e.time || '', note: e.note || '', category: null, source: 'foto', op_fysiek_bord: false, photo_id: data.photoId || null }
+    $('scan-add-all').addEventListener('click', async () => {
+      const checks = $('photo-results').querySelectorAll('.scan-check:checked')
+      if (checks.length === 0) { toast('Selecteer minstens één dienst.'); return }
+      let added = 0
+      for (const cb of checks) {
+        const e = entries[parseInt(cb.dataset.idx)]
+        const row = { title: e.title || 'Werk', who, type: 'eenmalig', weekday: null, date: e.date || null, end_date: null, time: e.time || '', note: e.end_time ? 'Tot ' + e.end_time : '', category: null, source: 'rooster', op_fysiek_bord: false, photo_id: null }
         const { error } = await dbWrite('insert', 'entries', { data: row })
-        if (error) { toast('Toevoegen mislukt.'); return }
-        b.disabled = true; b.style.opacity = '0.4'; b.textContent += ' ✓'
-        toast(e.title + ' toegevoegd.'); loadEntries()
-      })
+        if (!error) added++
+      }
+      toast(added + ' dienst' + (added !== 1 ? 'en' : '') + ' toegevoegd.')
+      loadEntries()
+      photoPanel.hidden = true; $('photo-input').value = ''; $('photo-preview').hidden = true; $('photo-results').hidden = true; $('photo-scan').hidden = true
     })
   } catch (e) {
-    toast('Foto kon niet worden verwerkt.')
+    toast('Rooster kon niet worden verwerkt.')
     $('photo-status').textContent = 'Er ging iets mis.'
-  } finally { btn.disabled = false; btn.textContent = 'Scan foto' }
+  } finally { btn.disabled = false; btn.textContent = 'Verwerk rooster' }
 })
 
 function renderGroceries() {

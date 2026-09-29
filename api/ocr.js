@@ -5,7 +5,7 @@ export const config = { api: { bodyParser: { sizeLimit: '5mb' } } }
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
 
-  const { imageBase64, mimeType, password } = req.body || {}
+  const { imageBase64, mimeType, who, password } = req.body || {}
   if (password !== process.env.APP_PASSWORD) return res.status(401).json({ error: 'Unauthorized' })
 
   const apiKey = process.env.ANTHROPIC_API_KEY
@@ -20,28 +20,29 @@ export default async function handler(req, res) {
   await supabaseForLimit.from('api_usage').insert({ endpoint: 'ocr' })
 
   const today = new Date().toISOString().slice(0, 10)
+  const year = new Date().getFullYear()
   const dayOfWeek = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'][new Date().getDay()]
 
-  const prompt = `Je bent een OCR-assistent voor een gezinsplanner. Vandaag is ${today} (${dayOfWeek}).
+  const prompt = `Je bent een assistent die werkroosters leest van screenshots. Vandaag is ${today} (${dayOfWeek}), jaar ${year}.
+${who ? 'Dit rooster is van ' + who + '.' : ''}
 
-Bekijk deze foto en extraheer alle agenda-items die je ziet. Geef een JSON array terug met objecten:
-- title (string): korte titel
-- who (string): een van Siem, Mare, Merel, Rick, Algemeen
-- type (string): wekelijks, jaarlijks, eenmalig, periode
-- weekday (string|null): maandag t/m zondag (alleen bij wekelijks)
-- date (string|null): ISO datum YYYY-MM-DD
-- end_date (string|null): ISO datum
-- time (string|null): HH:MM 24-uurs formaat
-- note (string|null): extra info
+Bekijk deze screenshot van een werkrooster/planning-app en extraheer alle diensten/shifts. Geef een JSON object terug:
+
+{ "summary": "korte beschrijving van wat je ziet", "entries": [...] }
+
+Elk entry-object heeft:
+- title (string): "Werk" of de werkgever/locatie als die zichtbaar is
+- date (string): ISO datum YYYY-MM-DD — leid het jaar af uit context (huidig jaar ${year})
+- time (string|null): starttijd HH:MM 24-uurs
+- end_time (string|null): eindtijd HH:MM 24-uurs
+- note (string|null): extra details (pauze, locatie, etc.)
 
 Regels:
-- Als geen persoon te herkennen: who = "Algemeen"
-- Probeer het type af te leiden uit context
-- Als je niets kunt lezen, geef een lege array []
-- Geef ALLEEN valid JSON terug (een array), geen uitleg.
-- Geef ook een apart veld "summary" met een korte beschrijving van wat je op de foto ziet.
-
-Formaat: { "summary": "...", "entries": [...] }`
+- Extraheer ALLE zichtbare diensten/werkdagen
+- Datums zonder jaar: gebruik ${year}, tenzij de maand al voorbij is, gebruik dan ${year + 1}
+- Vrije dagen, vakanties of "vrij" ook opnemen met title "Vrij"
+- Als je niets kunt lezen, geef een lege entries array
+- Geef ALLEEN valid JSON terug, geen uitleg`
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -49,12 +50,12 @@ Formaat: { "summary": "...", "entries": [...] }`
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1000,
+        max_tokens: 2000,
         messages: [{
           role: 'user',
           content: [
             { type: 'image', source: { type: 'base64', media_type: mimeType, data: imageBase64 } },
-            { type: 'text', text: 'Lees deze foto en geef de agenda-items terug als JSON.' }
+            { type: 'text', text: 'Lees dit werkrooster en geef alle diensten terug als JSON.' }
           ]
         }],
         system: prompt
@@ -73,11 +74,7 @@ Formaat: { "summary": "...", "entries": [...] }`
 
     const parsed = JSON.parse(jsonMatch[0])
 
-    const supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY)
-    const photoId = crypto.randomUUID()
-    await supabase.from('photos').insert({ id: photoId, status: 'verwerkt', ai_summary: parsed.summary || '' })
-
-    res.status(200).json({ photoId, summary: parsed.summary || '', entries: parsed.entries || [] })
+    res.status(200).json({ summary: parsed.summary || '', entries: parsed.entries || [] })
   } catch (e) {
     res.status(500).json({ error: 'OCR failed', detail: e.message })
   }
