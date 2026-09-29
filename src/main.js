@@ -429,7 +429,7 @@ function renderWeek() {
     th.addEventListener('click', () => { state.filterWho = state.filterWho === th.dataset.col ? null : th.dataset.col; renderWeek() })
   })
   table.querySelectorAll('.ci-del').forEach(btn => btn.addEventListener('click', ev => { ev.stopPropagation(); handleEntryDeleteClick(btn.dataset.id, btn.dataset.date) }))
-  table.querySelectorAll('.ci[data-id]').forEach(div => div.addEventListener('click', () => openDetailEntry(div.dataset.id, div)))
+  table.querySelectorAll('.ci[data-id]').forEach(div => { const tr = div.closest('tr'); const dStr = tr ? tr.querySelector('.day-add')?.dataset.date : null; div.addEventListener('click', () => openDetailEntry(div.dataset.id, div, dStr)) })
   table.querySelectorAll('.day-add').forEach(btn => btn.addEventListener('click', () => openItemForDay(btn.dataset.date, btn.dataset.dayname)))
   table.querySelectorAll('.cell-add').forEach(btn => btn.addEventListener('click', () => openItemForDay(btn.dataset.date, btn.dataset.dayname, btn.dataset.who)))
 
@@ -471,7 +471,7 @@ function renderWeekAgenda(days, todayStr) {
     return `<div class="agenda-day${isToday ? ' is-today' : ''}"><div class="agenda-day-head"><span class="agenda-day-name">${DAY_LABELS[dName]}</span><span class="agenda-day-date mono">${shortDate(day)}</span>${wChip}<button class="agenda-day-add" data-date="${esc(dStr)}" data-dayname="${esc(dName)}" aria-label="Item toevoegen">+</button></div><ul class="agenda-items">${itemsHtml}</ul></div>`
   }).join('')
   wrap.querySelectorAll('.agenda-del').forEach(btn => btn.addEventListener('click', ev => { ev.stopPropagation(); handleEntryDeleteClick(btn.dataset.id, btn.dataset.date) }))
-  wrap.querySelectorAll('.agenda-item[data-id]').forEach(li => li.addEventListener('click', () => openDetailEntry(li.dataset.id, li)))
+  wrap.querySelectorAll('.agenda-item[data-id]').forEach(li => { const dayDiv = li.closest('.agenda-day'); const dStr = dayDiv ? dayDiv.querySelector('.agenda-day-add')?.dataset.date : null; li.addEventListener('click', () => openDetailEntry(li.dataset.id, li, dStr)) })
   wrap.querySelectorAll('.agenda-day-add').forEach(btn => btn.addEventListener('click', () => openItemForDay(btn.dataset.date, btn.dataset.dayname)))
 }
 
@@ -535,7 +535,7 @@ document.querySelectorAll('.tab').forEach(btn => {
     document.querySelectorAll('.tab').forEach(b => { b.classList.toggle('is-active', b === btn); b.setAttribute('aria-selected', b === btn ? 'true' : 'false') })
     ;['week', 'groceries', 'board', 'profile'].forEach(v => $('view-' + v).hidden = v !== view)
     if (view === 'board') markNewAsSeen()
-    if (view === 'profile') $('profileUser').textContent = state.currentUser || '—'
+    if (view === 'profile') { $('profileUser').textContent = state.currentUser || '—'; $('profileAvatar').textContent = state.currentUser ? state.currentUser.charAt(0).toUpperCase() : '—' }
   })
 })
 
@@ -553,7 +553,10 @@ function resetItemPanel() {
 }
 
 const itemPanel = $('itemPanel'), groceryPanel = $('groceryPanel'), dinnerPanel = $('dinnerPanel'), photoPanel = $('photoPanel')
+const addDropdownMenu = $('addDropdownMenu')
 function hideAllPanels() { itemPanel.hidden = true; groceryPanel.hidden = true; dinnerPanel.hidden = true; closeInlineDetail() }
+$('btnAddToggle').addEventListener('click', (ev) => { ev.stopPropagation(); addDropdownMenu.hidden = !addDropdownMenu.hidden })
+document.addEventListener('click', () => { if (addDropdownMenu && !addDropdownMenu.hidden) addDropdownMenu.hidden = true })
 $('btnNewItem').addEventListener('click', () => { const was = itemPanel.hidden; hideAllPanels(); state.addForDate = null; state.editId = null; if (was) { resetItemPanel(); itemPanel.hidden = false } })
 
 function openItemForDay(dateStr, dayName, who) {
@@ -571,7 +574,7 @@ function closeInlineDetail() {
   state.detailId = null
 }
 
-function openDetailEntry(id, clickedEl) {
+function openDetailEntry(id, clickedEl, dateStr) {
   const e = state.entries.find(x => x.id === id)
   if (!e) return
   closeInlineDetail()
@@ -585,12 +588,13 @@ function openDetailEntry(id, clickedEl) {
   if (e.time) sched += ' om ' + e.time
   const who = (e.who || '').split(',').map(n => chipHtml(n.trim())).join(' ')
   const bday = e.birthYear ? '<div class="detail-muted">🎂 Geboortejaar ' + e.birthYear + '</div>' : ''
-  const note = e.note ? '<div class="detail-muted">' + esc(e.note) + '</div>' : ''
+  const note = e.note ? '<div class="inline-detail-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>' + esc(e.note) + '</div>' : ''
   const div = document.createElement('div')
   div.className = 'inline-detail'
-  div.innerHTML = `<div class="inline-detail-head"><strong>${esc(e.title)}</strong><button class="inline-detail-close" aria-label="Sluiten">×</button></div><div class="inline-detail-body">${who}<div class="detail-muted">${esc(sched)}</div>${note}${bday}</div><button class="btn btn-primary btn-sm inline-detail-edit" data-id="${esc(e.id)}">Bewerken</button>`
+  div.innerHTML = `<div class="inline-detail-head"><strong>${esc(e.title)}</strong><button class="inline-detail-close" aria-label="Sluiten">×</button></div><div class="inline-detail-body">${who}<div class="detail-muted"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;vertical-align:-2px;margin-right:3px;opacity:0.6"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>${esc(sched)}</div>${note}${bday}</div><div class="inline-detail-actions"><button class="btn btn-primary btn-sm inline-detail-edit" data-id="${esc(e.id)}">Bewerken</button><button class="btn btn-ghost btn-sm inline-detail-delete" data-id="${esc(e.id)}" style="color:var(--danger)">Verwijderen</button></div>`
   div.querySelector('.inline-detail-close').addEventListener('click', (ev) => { ev.stopPropagation(); closeInlineDetail() })
   div.querySelector('.inline-detail-edit').addEventListener('click', (ev) => { ev.stopPropagation(); closeInlineDetail(); openEditEntry(e.id) })
+  div.querySelector('.inline-detail-delete').addEventListener('click', (ev) => { ev.stopPropagation(); closeInlineDetail(); handleEntryDeleteClick(e.id, dateStr || ymd(new Date())) })
   if (clickedEl) clickedEl.insertAdjacentElement('afterend', div)
   else document.body.appendChild(div)
   div.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
@@ -1010,11 +1014,24 @@ if (pushDismissBtn) pushDismissBtn.addEventListener('click', () => {
 })
 
 // ── profile prefs ──
-const prefWeather = $('pref-weather'), prefBirthdays = $('pref-birthdays')
+const prefWeather = $('pref-weather'), prefBirthdays = $('pref-birthdays'), prefDarkmode = $('pref-darkmode')
 prefWeather.checked = pref('showWeather', true)
 prefBirthdays.checked = pref('showBirthdays', true)
+prefDarkmode.checked = pref('darkMode', false)
+if (pref('darkMode', false)) document.documentElement.setAttribute('data-theme', 'dark')
 prefWeather.addEventListener('change', () => { savePref('showWeather', prefWeather.checked); state.weather = null; renderWeek() })
 prefBirthdays.addEventListener('change', () => { savePref('showBirthdays', prefBirthdays.checked); renderWeek() })
+prefDarkmode.addEventListener('change', () => {
+  savePref('darkMode', prefDarkmode.checked)
+  if (prefDarkmode.checked) document.documentElement.setAttribute('data-theme', 'dark')
+  else document.documentElement.removeAttribute('data-theme')
+  renderWeek(); renderTasks()
+})
+$('btnCopyCalendar').addEventListener('click', () => {
+  const url = window.location.origin + '/api/calendar'
+  navigator.clipboard.writeText(url).then(() => toast('Agenda-link gekopieerd!')).catch(() => toast('Kopiëren mislukt.'))
+})
+$('btnLogout').addEventListener('click', () => { localStorage.removeItem('wp-auth'); localStorage.removeItem('wp-user'); window.location.reload() })
 
 // ── init ──
 async function init() {

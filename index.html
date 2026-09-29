@@ -31,7 +31,7 @@
         <nav class="tabs" role="tablist">
           <button class="tab is-active" data-view="week" role="tab" aria-selected="true">Week</button>
           <button class="tab" data-view="groceries" role="tab" aria-selected="false">Boodschappen</button>
-          <button class="tab tab-new" data-view="board" role="tab" aria-selected="false">Nieuw <span class="tab-badge" id="newBadge" hidden></span></button>
+          <button class="tab tab-new" data-view="board" role="tab" aria-selected="false">Bord <span class="tab-badge" id="newBadge" hidden></span></button>
           <button class="tab" data-view="profile" role="tab" aria-selected="false">Profiel</button>
         </nav>
       </header>
@@ -47,9 +47,14 @@
                 <button class="btn btn-ghost btn-sm" id="weekToday" hidden>Vandaag</button>
               </div>
               <div class="week-actions">
-                <button class="btn btn-primary btn-sm" id="btnNewItem">+ Nieuw item</button>
-                <button class="btn btn-ghost btn-sm" id="btnNewDinner">+ Avondeten</button>
-                <button class="btn btn-ghost btn-sm" id="btnNewGrocery">+ Boodschap</button>
+                <div class="add-dropdown">
+                  <button class="btn btn-primary btn-sm" id="btnAddToggle">+ Toevoegen</button>
+                  <div class="add-dropdown-menu" id="addDropdownMenu" hidden>
+                    <button type="button" class="add-dropdown-item" id="btnNewItem">Nieuw item</button>
+                    <button type="button" class="add-dropdown-item" id="btnNewDinner">Avondeten</button>
+                    <button type="button" class="add-dropdown-item" id="btnNewGrocery">Boodschap</button>
+                  </div>
+                </div>
               </div>
             </div>
             <div class="week-filter-note" id="weekFilterNote" hidden></div>
@@ -155,6 +160,7 @@
             </div>
 
             <div class="week-table-wrap"><table class="week-table" id="weekTable"></table></div>
+            <div class="status-legend"><span class="legend-item"><span class="ci-dot on-bord"></span> Op het bord</span><span class="legend-item"><span class="ci-dot pending"></span> Nog overzetten</span></div>
             <div class="week-agenda" id="weekAgenda"></div>
             <div class="swipe-hint" id="swipeHint">← swipe voor andere week →</div>
           </div>
@@ -205,11 +211,20 @@
         </section>
         <section class="view" id="view-profile" hidden>
           <div class="panel">
-            <h2>Profiel</h2>
-            <p class="panel-sub">Ingelogd als <strong id="profileUser">—</strong></p>
+            <div class="profile-header">
+              <div class="profile-avatar" id="profileAvatar">—</div>
+              <div><div class="profile-name" id="profileUser">—</div><div class="profile-sub">Gezin weekplanner</div></div>
+            </div>
+            <div class="settings-section-title">Weergave</div>
             <div class="settings-group">
               <label class="setting-toggle"><input type="checkbox" id="pref-weather" checked /><span>Weer tonen bij dagen</span></label>
               <label class="setting-toggle"><input type="checkbox" id="pref-birthdays" checked /><span>Verjaardagen tonen in weekoverzicht</span></label>
+              <label class="setting-toggle"><input type="checkbox" id="pref-darkmode" /><span>Donker thema</span></label>
+            </div>
+            <div class="settings-section-title">Koppelingen</div>
+            <div class="settings-links">
+              <button type="button" class="settings-link" id="btnCopyCalendar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;vertical-align:-3px;margin-right:6px"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M3 9h18M8 3v3M16 3v3"></path></svg>Agenda-link kopiëren (ICS)</button>
+              <button type="button" class="settings-link settings-link-danger" id="btnLogout"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;vertical-align:-3px;margin-right:6px"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"></path></svg>Uitloggen</button>
             </div>
           </div>
         </section>
