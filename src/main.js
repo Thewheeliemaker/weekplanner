@@ -429,7 +429,7 @@ function renderWeek() {
     th.addEventListener('click', () => { state.filterWho = state.filterWho === th.dataset.col ? null : th.dataset.col; renderWeek() })
   })
   table.querySelectorAll('.ci-del').forEach(btn => btn.addEventListener('click', ev => { ev.stopPropagation(); handleEntryDeleteClick(btn.dataset.id, btn.dataset.date) }))
-  table.querySelectorAll('.ci[data-id]').forEach(div => div.addEventListener('click', () => openDetailEntry(div.dataset.id)))
+  table.querySelectorAll('.ci[data-id]').forEach(div => div.addEventListener('click', () => openDetailEntry(div.dataset.id, div)))
   table.querySelectorAll('.day-add').forEach(btn => btn.addEventListener('click', () => openItemForDay(btn.dataset.date, btn.dataset.dayname)))
   table.querySelectorAll('.cell-add').forEach(btn => btn.addEventListener('click', () => openItemForDay(btn.dataset.date, btn.dataset.dayname, btn.dataset.who)))
 
@@ -471,7 +471,7 @@ function renderWeekAgenda(days, todayStr) {
     return `<div class="agenda-day${isToday ? ' is-today' : ''}"><div class="agenda-day-head"><span class="agenda-day-name">${DAY_LABELS[dName]}</span><span class="agenda-day-date mono">${shortDate(day)}</span>${wChip}<button class="agenda-day-add" data-date="${esc(dStr)}" data-dayname="${esc(dName)}" aria-label="Item toevoegen">+</button></div><ul class="agenda-items">${itemsHtml}</ul></div>`
   }).join('')
   wrap.querySelectorAll('.agenda-del').forEach(btn => btn.addEventListener('click', ev => { ev.stopPropagation(); handleEntryDeleteClick(btn.dataset.id, btn.dataset.date) }))
-  wrap.querySelectorAll('.agenda-item[data-id]').forEach(li => li.addEventListener('click', () => openDetailEntry(li.dataset.id)))
+  wrap.querySelectorAll('.agenda-item[data-id]').forEach(li => li.addEventListener('click', () => openDetailEntry(li.dataset.id, li)))
   wrap.querySelectorAll('.agenda-day-add').forEach(btn => btn.addEventListener('click', () => openItemForDay(btn.dataset.date, btn.dataset.dayname)))
 }
 
@@ -552,8 +552,8 @@ function resetItemPanel() {
   focusSoon('quick-text')
 }
 
-const itemPanel = $('itemPanel'), groceryPanel = $('groceryPanel'), dinnerPanel = $('dinnerPanel'), photoPanel = $('photoPanel'), detailPanel = $('itemDetailPanel')
-function hideAllPanels() { itemPanel.hidden = true; groceryPanel.hidden = true; dinnerPanel.hidden = true; detailPanel.hidden = true }
+const itemPanel = $('itemPanel'), groceryPanel = $('groceryPanel'), dinnerPanel = $('dinnerPanel'), photoPanel = $('photoPanel')
+function hideAllPanels() { itemPanel.hidden = true; groceryPanel.hidden = true; dinnerPanel.hidden = true; closeInlineDetail() }
 $('btnNewItem').addEventListener('click', () => { const was = itemPanel.hidden; hideAllPanels(); state.addForDate = null; state.editId = null; if (was) { resetItemPanel(); itemPanel.hidden = false } })
 
 function openItemForDay(dateStr, dayName, who) {
@@ -565,27 +565,35 @@ function openItemForDay(dateStr, dayName, who) {
   const el = $('quick-text')
   el.placeholder = who ? 'Item voor ' + who + ' op ' + DAY_LABELS[dayName] + '…' : 'Item voor ' + DAY_LABELS[dayName] + '…'
 }
-function openDetailEntry(id) {
+function closeInlineDetail() {
+  const existing = document.querySelector('.inline-detail')
+  if (existing) existing.remove()
+  state.detailId = null
+}
+
+function openDetailEntry(id, clickedEl) {
   const e = state.entries.find(x => x.id === id)
   if (!e) return
-  hideAllPanels()
+  closeInlineDetail()
+  if (state.detailId === id) { state.detailId = null; return }
   state.detailId = id
-  $('detail-title').textContent = e.title
-  $('detail-who').innerHTML = (e.who || '').split(',').map(n => chipHtml(n.trim())).join(' ')
   const TYPE_LABELS = { wekelijks: 'Wekelijks', jaarlijks: 'Jaarlijks', eenmalig: 'Eenmalig', periode: 'Periode' }
   let sched = TYPE_LABELS[e.type] || e.type
   if (e.weekday) sched += ' · ' + DAY_LABELS[e.weekday]
   if (e.date) sched += ' · ' + fmtDateFull(e.date)
   if (e.endDate) sched += ' t/m ' + fmtDateFull(e.endDate)
   if (e.time) sched += ' om ' + e.time
-  $('detail-schedule').textContent = sched
-  $('detail-note').textContent = e.note || ''
-  $('detail-note').hidden = !e.note
-  const bday = e.birthYear ? '🎂 Geboortejaar ' + e.birthYear : ''
-  $('detail-birthday').textContent = bday
-  $('detail-birthday').hidden = !bday
-  detailPanel.hidden = false
-  detailPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  const who = (e.who || '').split(',').map(n => chipHtml(n.trim())).join(' ')
+  const bday = e.birthYear ? '<div class="detail-muted">🎂 Geboortejaar ' + e.birthYear + '</div>' : ''
+  const note = e.note ? '<div class="detail-muted">' + esc(e.note) + '</div>' : ''
+  const div = document.createElement('div')
+  div.className = 'inline-detail'
+  div.innerHTML = `<div class="inline-detail-head"><strong>${esc(e.title)}</strong><button class="inline-detail-close" aria-label="Sluiten">×</button></div><div class="inline-detail-body">${who}<div class="detail-muted">${esc(sched)}</div>${note}${bday}</div><button class="btn btn-primary btn-sm inline-detail-edit" data-id="${esc(e.id)}">Bewerken</button>`
+  div.querySelector('.inline-detail-close').addEventListener('click', (ev) => { ev.stopPropagation(); closeInlineDetail() })
+  div.querySelector('.inline-detail-edit').addEventListener('click', (ev) => { ev.stopPropagation(); closeInlineDetail(); openEditEntry(e.id) })
+  if (clickedEl) clickedEl.insertAdjacentElement('afterend', div)
+  else document.body.appendChild(div)
+  div.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
 }
 
 function openEditEntry(id) {
@@ -618,8 +626,6 @@ function openEditEntry(id) {
   itemPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
 }
 
-$('detail-close').addEventListener('click', () => detailPanel.hidden = true)
-$('detail-edit').addEventListener('click', () => { if (state.detailId) openEditEntry(state.detailId) })
 $('quick-cancel').addEventListener('click', () => itemPanel.hidden = true)
 $('f-cancel').addEventListener('click', () => itemPanel.hidden = true)
 $('f-back').addEventListener('click', () => { $('itemForm').hidden = true; $('quickAddBox').hidden = false; focusSoon('quick-text') })

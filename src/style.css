@@ -286,9 +286,21 @@ table.week-table { border-collapse: collapse; width: 100%; min-width: 620px; tab
 .modal-actions { display: flex; flex-direction: column; gap: 8px; }
 .modal-actions .btn { width: 100%; justify-content: center; }
 
-.detail-body { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
-.detail-row { font-size: 0.88rem; }
-.detail-muted { color: var(--ink-soft); font-size: 0.82rem; }
+.inline-detail {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 10px 12px; margin: 4px 0; box-shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+.inline-detail-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.inline-detail-head strong { font-size: 0.92rem; }
+.inline-detail-close {
+  background: none; border: none; font-size: 1.2rem; cursor: pointer;
+  color: var(--ink-soft); padding: 0 4px; line-height: 1;
+}
+.inline-detail-body { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; font-size: 0.85rem; }
+.inline-detail-body .detail-muted { color: var(--ink-soft); font-size: 0.82rem; }
+.inline-detail-edit { margin-top: 8px; }
 
 .settings-group { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
 .setting-toggle { display: flex; align-items: center; gap: 10px; font-size: 0.88rem; cursor: pointer; }
