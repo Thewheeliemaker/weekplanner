@@ -881,6 +881,7 @@ $('photo-scan').addEventListener('click', async () => {
     const data = await resp.json()
     $('photo-status').textContent = data.summary || 'Klaar.'
     const entries = data.entries || []
+    $('photo-scan').hidden = true
     if (entries.length === 0) { $('photo-results').innerHTML = '<p class="panel-sub">Geen diensten gevonden.</p>'; $('photo-results').hidden = false; return }
     $('photo-results').innerHTML = '<p class="panel-sub" style="margin-bottom:6px">Gevonden diensten:</p>' +
       entries.map((e, i) => '<label class="scan-entry" style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:0.85rem"><input type="checkbox" checked data-idx="' + i + '" class="scan-check" /><span>' + esc(e.date || '') + '</span><strong>' + esc(e.time || '') + (e.end_time ? '–' + esc(e.end_time) : '') + '</strong><span style="color:var(--ink-soft)">' + esc(e.title || 'Werk') + '</span></label>').join('') +
@@ -892,7 +893,7 @@ $('photo-scan').addEventListener('click', async () => {
       let added = 0
       for (const cb of checks) {
         const e = entries[parseInt(cb.dataset.idx)]
-        const row = { title: e.title || 'Werk', who, type: 'eenmalig', weekday: null, date: e.date || null, end_date: null, time: e.time || '', note: e.end_time ? 'Tot ' + e.end_time : '', category: null, source: 'rooster', op_fysiek_bord: false, photo_id: null }
+        const row = { title: e.title || 'Werk', who, type: 'eenmalig', weekday: null, date: e.date || null, end_date: null, time: e.time || '', note: e.end_time ? 'Tot ' + e.end_time : '', category: null, skip_dates: [], source: 'rooster', op_fysiek_bord: false, photo_id: null, reminder_minutes: null, birth_year: null }
         const { error } = await dbWrite('insert', 'entries', { data: row })
         if (!error) added++
       }

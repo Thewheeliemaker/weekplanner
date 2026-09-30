@@ -68,7 +68,7 @@ export default async function handler(req, res) {
   const { data, error } = await supabase.from('entries').select('*').order('created_at', { ascending: true }).limit(800)
   if (error) return res.status(500).json({ error: 'Database query failed' })
 
-  const filtered = (data || []).filter(e => !e.birth_year)
+  const filtered = (data || []).filter(e => !e.birth_year && e.category !== 'eten')
   const ics = buildICS(filtered)
   res.setHeader('Content-Type', 'text/calendar; charset=utf-8')
   res.setHeader('Content-Disposition', 'inline; filename="weekplanner.ics"')
