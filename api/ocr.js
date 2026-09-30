@@ -38,7 +38,10 @@ Elk entry-object heeft:
 - note (string|null): extra details (pauze, locatie, etc.)
 
 Regels:
-- Extraheer ALLE zichtbare diensten/werkdagen
+- Extraheer ALLE zichtbare diensten/werkdagen met hun EIGEN datums
+- Let op: de datum van een dienst is de dag waarop die dienst gepland staat (bijv. de datum in de kolomkop, de rij-header, of het omcirkelde/gemarkeerde datumveld), NIET de huidige datum
+- In veel werk-apps staat de datum bij elke dag/shift — gebruik DIE datum
+- Omcirkelde, vetgedrukte of gemarkeerde datums zijn vaak de relevante werkdag
 - Datums zonder jaar: gebruik ${year}, tenzij de maand al voorbij is, gebruik dan ${year + 1}
 - Vrije dagen, vakanties of "vrij" ook opnemen met title "Vrij"
 - Als je niets kunt lezen, geef een lege entries array

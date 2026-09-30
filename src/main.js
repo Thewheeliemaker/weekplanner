@@ -883,22 +883,39 @@ $('photo-scan').addEventListener('click', async () => {
     const entries = data.entries || []
     $('photo-scan').hidden = true
     if (entries.length === 0) { $('photo-results').innerHTML = '<p class="panel-sub">Geen diensten gevonden.</p>'; $('photo-results').hidden = false; return }
-    $('photo-results').innerHTML = '<p class="panel-sub" style="margin-bottom:6px">Gevonden diensten:</p>' +
-      entries.map((e, i) => '<label class="scan-entry" style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:0.85rem"><input type="checkbox" checked data-idx="' + i + '" class="scan-check" /><span>' + esc(e.date || '') + '</span><strong>' + esc(e.time || '') + (e.end_time ? '–' + esc(e.end_time) : '') + '</strong><span style="color:var(--ink-soft)">' + esc(e.title || 'Werk') + '</span></label>').join('') +
+    $('photo-results').innerHTML = '<p class="panel-sub" style="margin-bottom:6px">Gevonden diensten (pas datum/tijd aan indien nodig):</p>' +
+      entries.map((e, i) =>
+        '<div class="scan-entry" style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:0.85rem;flex-wrap:wrap">' +
+          '<input type="checkbox" checked data-idx="' + i + '" class="scan-check" />' +
+          '<input type="date" class="input scan-date" data-idx="' + i + '" value="' + esc(e.date || '') + '" style="font-size:0.82rem;padding:2px 4px;width:130px" />' +
+          '<input type="time" class="input scan-time" data-idx="' + i + '" value="' + esc(e.time || '') + '" style="font-size:0.82rem;padding:2px 4px;width:80px" />' +
+          (e.end_time ? '<span>–</span><input type="time" class="input scan-endtime" data-idx="' + i + '" value="' + esc(e.end_time) + '" style="font-size:0.82rem;padding:2px 4px;width:80px" />' : '') +
+          '<span style="color:var(--ink-soft)">' + esc(e.title || 'Werk') + '</span>' +
+        '</div>'
+      ).join('') +
       '<div style="margin-top:8px"><button type="button" class="btn btn-primary btn-sm" id="scan-add-all">Geselecteerde toevoegen</button></div>'
     $('photo-results').hidden = false
     $('scan-add-all').addEventListener('click', async () => {
       const checks = $('photo-results').querySelectorAll('.scan-check:checked')
       if (checks.length === 0) { toast('Selecteer minstens één dienst.'); return }
-      let added = 0
+      const addBtn = $('scan-add-all'); addBtn.disabled = true; addBtn.textContent = 'Bezig…'
+      let added = 0, lastErr = ''
       for (const cb of checks) {
-        const e = entries[parseInt(cb.dataset.idx)]
-        const row = { title: e.title || 'Werk', who, type: 'eenmalig', weekday: null, date: e.date || null, end_date: null, time: e.time || '', note: e.end_time ? 'Tot ' + e.end_time : '', category: null, skip_dates: [], source: 'rooster', op_fysiek_bord: false, photo_id: null, reminder_minutes: null, birth_year: null }
+        const idx = cb.dataset.idx
+        const e = entries[parseInt(idx)]
+        const dateInput = $('photo-results').querySelector('.scan-date[data-idx="' + idx + '"]')
+        const timeInput = $('photo-results').querySelector('.scan-time[data-idx="' + idx + '"]')
+        const endInput = $('photo-results').querySelector('.scan-endtime[data-idx="' + idx + '"]')
+        const date = dateInput ? dateInput.value : (e.date || null)
+        const time = timeInput ? timeInput.value : (e.time || '')
+        const endTime = endInput ? endInput.value : (e.end_time || '')
+        const row = { title: e.title || 'Werk', who, type: 'eenmalig', weekday: null, date: date || null, end_date: null, time: time || null, note: endTime ? 'Tot ' + endTime : '', category: null, skip_dates: [], source: 'rooster', op_fysiek_bord: false, photo_id: null, reminder_minutes: null, birth_year: null }
         const { error } = await dbWrite('insert', 'entries', { data: row })
-        if (!error) added++
+        if (error) lastErr = error.message || JSON.stringify(error)
+        else added++
       }
-      toast(added + ' dienst' + (added !== 1 ? 'en' : '') + ' toegevoegd.')
-      loadEntries()
+      if (added > 0) { toast(added + ' dienst' + (added !== 1 ? 'en' : '') + ' toegevoegd.'); loadEntries() }
+      if (lastErr) { toast('Fout: ' + lastErr); $('photo-status').textContent = 'Fout: ' + lastErr; addBtn.disabled = false; addBtn.textContent = 'Geselecteerde toevoegen'; return }
       photoPanel.hidden = true; $('photo-input').value = ''; $('photo-preview').hidden = true; $('photo-results').hidden = true; $('photo-scan').hidden = true
     })
   } catch (e) {
