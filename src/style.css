@@ -281,6 +281,13 @@ table.week-table { border-collapse: collapse; width: 100%; min-width: 620px; tab
 /* ── form panels distinction ── */
 .add-panel { border: 2px dashed var(--accent); border-radius: var(--radius-sm); background: var(--accent-soft); padding: 16px; margin-top: 14px; }
 .add-panel h3 { color: var(--accent-ink); }
+.add-panel input[type="date"], .add-panel input[type="time"], .add-panel select {
+  border: 1px solid var(--border); background: var(--surface); border-radius: 6px;
+  padding: 4px 8px; font-size: 0.82rem; color: var(--ink);
+}
+.scan-entry { flex-wrap: wrap; }
+.scan-entry input[type="date"] { width: auto; min-width: 120px; }
+.scan-entry input[type="time"] { width: auto; min-width: 75px; }
 .inline-add-form { background: var(--accent-soft); border: 1px dashed var(--accent); border-radius: var(--radius-sm); padding: 10px; margin-bottom: 14px; }
 .grocery-quick-form { background: var(--accent-soft); border: 1px dashed var(--accent); border-radius: var(--radius-sm); padding: 10px; }
 

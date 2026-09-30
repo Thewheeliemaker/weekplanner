@@ -885,11 +885,11 @@ $('photo-scan').addEventListener('click', async () => {
     if (entries.length === 0) { $('photo-results').innerHTML = '<p class="panel-sub">Geen diensten gevonden.</p>'; $('photo-results').hidden = false; return }
     $('photo-results').innerHTML = '<p class="panel-sub" style="margin-bottom:6px">Gevonden diensten (pas datum/tijd aan indien nodig):</p>' +
       entries.map((e, i) =>
-        '<div class="scan-entry" style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:0.85rem;flex-wrap:wrap">' +
-          '<input type="checkbox" checked data-idx="' + i + '" class="scan-check" />' +
-          '<input type="date" class="input scan-date" data-idx="' + i + '" value="' + esc(e.date || '') + '" style="font-size:0.82rem;padding:2px 4px;width:130px" />' +
-          '<input type="time" class="input scan-time" data-idx="' + i + '" value="' + esc(e.time || '') + '" style="font-size:0.82rem;padding:2px 4px;width:80px" />' +
-          (e.end_time ? '<span>–</span><input type="time" class="input scan-endtime" data-idx="' + i + '" value="' + esc(e.end_time) + '" style="font-size:0.82rem;padding:2px 4px;width:80px" />' : '') +
+        '<div class="scan-entry" style="display:flex;align-items:center;gap:6px;padding:5px 0;font-size:0.85rem;flex-wrap:wrap">' +
+          '<input type="checkbox" checked data-idx="' + i + '" class="scan-check" style="accent-color:var(--accent)" />' +
+          '<input type="date" class="scan-date" data-idx="' + i + '" value="' + esc(e.date || '') + '" />' +
+          '<input type="time" class="scan-time" data-idx="' + i + '" value="' + esc(e.time || '') + '" />' +
+          (e.end_time ? '<span style="color:var(--ink-soft)">–</span><input type="time" class="scan-endtime" data-idx="' + i + '" value="' + esc(e.end_time) + '" />' : '') +
           '<span style="color:var(--ink-soft)">' + esc(e.title || 'Werk') + '</span>' +
         '</div>'
       ).join('') +
