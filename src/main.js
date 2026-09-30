@@ -593,8 +593,9 @@ function positionPopover(pop, anchor) {
 function openDetailEntry(id, clickedEl, dateStr) {
   const e = state.entries.find(x => x.id === id)
   if (!e) return
+  const wasOpen = state.detailId === id
   closeInlineDetail()
-  if (state.detailId === id) { state.detailId = null; return }
+  if (wasOpen) return
   state.detailId = id
   const TYPE_LABELS = { wekelijks: 'Wekelijks', jaarlijks: 'Jaarlijks', eenmalig: 'Eenmalig', periode: 'Periode' }
   let sched = TYPE_LABELS[e.type] || e.type
@@ -612,10 +613,9 @@ function openDetailEntry(id, clickedEl, dateStr) {
   const div = document.createElement('div')
   div.className = inTable ? 'detail-popover' : 'detail-inline'
   div.innerHTML = `<div class="detail-popover-inner"><div class="detail-popover-head"><strong>${esc(e.title)}</strong><button class="detail-popover-close" aria-label="Sluiten">${closeIcon}</button></div><div class="detail-popover-body">${who}<div class="detail-muted"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;vertical-align:-2px;margin-right:3px;opacity:0.6"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>${esc(sched)}</div>${note}${bday}</div><div class="detail-popover-actions"><button class="btn btn-primary btn-sm detail-popover-edit" data-id="${esc(e.id)}">Bewerken</button><button class="btn btn-ghost btn-sm detail-popover-delete" data-id="${esc(e.id)}" style="color:var(--danger)">Verwijderen</button></div></div>`
-  div.addEventListener('click', (ev) => ev.stopPropagation())
   div.querySelector('.detail-popover-close').addEventListener('click', () => closeInlineDetail())
-  div.querySelector('.detail-popover-edit').addEventListener('click', () => { closeInlineDetail(); openEditEntry(e.id) })
-  div.querySelector('.detail-popover-delete').addEventListener('click', () => { closeInlineDetail(); handleEntryDeleteClick(e.id, dateStr || ymd(new Date())) })
+  div.querySelector('.detail-popover-edit').addEventListener('click', (ev) => { ev.stopPropagation(); closeInlineDetail(); openEditEntry(e.id) })
+  div.querySelector('.detail-popover-delete').addEventListener('click', (ev) => { ev.stopPropagation(); closeInlineDetail(); handleEntryDeleteClick(e.id, dateStr || ymd(new Date())) })
   _detailOutsideHandler = () => closeInlineDetail()
   setTimeout(() => document.addEventListener('click', _detailOutsideHandler), 0)
   if (inTable) {
