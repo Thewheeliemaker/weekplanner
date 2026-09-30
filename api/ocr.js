@@ -31,7 +31,7 @@ Bekijk deze screenshot van een werkrooster/planning-app en extraheer alle dienst
 { "summary": "korte beschrijving van wat je ziet", "entries": [...] }
 
 Elk entry-object heeft:
-- title (string): "Werk" of de werkgever/locatie als die zichtbaar is
+- title (string): "Werk NAAM" waarbij NAAM de naam van de persoon/medewerker is bij wie de dienst staat (bijv. "Werk Siem van Doorn"). Als er geen naam bij staat, gebruik "Werk" of de werkgever/locatie
 - date (string): ISO datum YYYY-MM-DD — leid het jaar af uit context (huidig jaar ${year})
 - time (string|null): starttijd HH:MM 24-uurs
 - end_time (string|null): eindtijd HH:MM 24-uurs
