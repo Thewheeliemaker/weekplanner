@@ -898,6 +898,7 @@ $('photo-scan').addEventListener('click', async () => {
     $('scan-add-all').addEventListener('click', async () => {
       const checks = $('photo-results').querySelectorAll('.scan-check:checked')
       if (checks.length === 0) { toast('Selecteer minstens één dienst.'); return }
+      const selectedWho = $('scan-who').value
       const addBtn = $('scan-add-all'); addBtn.disabled = true; addBtn.textContent = 'Bezig…'
       let added = 0, lastErr = ''
       for (const cb of checks) {
@@ -909,7 +910,7 @@ $('photo-scan').addEventListener('click', async () => {
         const date = dateInput ? dateInput.value : (e.date || null)
         const time = timeInput ? timeInput.value : (e.time || '')
         const endTime = endInput ? endInput.value : (e.end_time || '')
-        const row = { title: e.title || 'Werk', who, type: 'eenmalig', weekday: null, date: date || null, end_date: null, time: time || null, note: endTime ? 'Tot ' + endTime : '', category: null, skip_dates: [], source: 'foto', op_fysiek_bord: false, photo_id: null, reminder_minutes: null, birth_year: null }
+        const row = { title: selectedWho + ' werken', who: selectedWho, type: 'eenmalig', weekday: null, date: date || null, end_date: null, time: time || null, note: endTime ? 'Tot ' + endTime : '', category: null, skip_dates: [], source: 'foto', op_fysiek_bord: false, photo_id: null, reminder_minutes: null, birth_year: null }
         const { error } = await dbWrite('insert', 'entries', { data: row })
         if (error) lastErr = error.message || JSON.stringify(error)
         else added++

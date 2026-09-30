@@ -39,9 +39,9 @@ Elk entry-object heeft:
 
 Regels:
 - Extraheer ALLE zichtbare diensten/werkdagen met hun EIGEN datums
-- Let op: de datum van een dienst is de dag waarop die dienst gepland staat (bijv. de datum in de kolomkop, de rij-header, of het omcirkelde/gemarkeerde datumveld), NIET de huidige datum
+- BELANGRIJK over datums in kalender-apps: een GEVULDE gekleurde cirkel rond een datum = vandaag (ter referentie). Een OMLIJND/GEBORDERED vierkantje of lichte markering rond een andere datum = de GESELECTEERDE dag. De diensten die eronder staan horen bij de GESELECTEERDE dag, NIET bij vandaag
+- Voorbeeld: als "30" een blauwe cirkel heeft (vandaag) en "1" een vierkant kader heeft (geselecteerd), dan zijn de diensten voor de 1e, niet de 30e
 - In veel werk-apps staat de datum bij elke dag/shift — gebruik DIE datum
-- Omcirkelde, vetgedrukte of gemarkeerde datums zijn vaak de relevante werkdag
 - Datums zonder jaar: gebruik ${year}, tenzij de maand al voorbij is, gebruik dan ${year + 1}
 - Vrije dagen, vakanties of "vrij" ook opnemen met title "Vrij"
 - Als je niets kunt lezen, geef een lege entries array
