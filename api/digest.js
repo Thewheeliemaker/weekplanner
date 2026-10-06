@@ -168,11 +168,16 @@ export default async function handler(req, res) {
 
   webpush.setVapidDetails('mailto:weekplanner@example.com', vapidPublic, vapidPrivate)
 
+  const GREETINGS = { Merel: 'Goedemorgen schoonheid', Mare: 'Goedemorgen scheetje', Siem: 'Goedemorgen kakkie' }
+
   const payload = JSON.stringify({ title, body, tag: 'digest' })
   let sent = 0
   for (const sub of subs) {
+    const greeting = GREETINGS[sub.user_name] || 'Goedemorgen'
+    const personalTitle = `${greeting} ${weatherShort}`
+    const personalPayload = JSON.stringify({ title: personalTitle, body, tag: 'digest' })
     try {
-      await webpush.sendNotification(JSON.parse(sub.subscription), payload)
+      await webpush.sendNotification(JSON.parse(sub.subscription), personalPayload)
       sent++
     } catch (err) {
       if (err.statusCode === 410 || err.statusCode === 404) {
