@@ -106,6 +106,21 @@ const WEATHER_ICON = {
 function weatherIcon(code) { return WEATHER_ICON[code] || '🌡️' }
 
 const weatherCache = { data: null, fetched: 0, weekStart: '' }
+let locationCoords = { lat: 52.09, lon: 5.12, name: 'Utrecht' }
+
+async function loadLocation() {
+  try {
+    const cached = JSON.parse(localStorage.getItem('wp-location') || 'null')
+    if (cached && cached.lat) { locationCoords = cached; return }
+  } catch {}
+  try {
+    const { data } = await supabase.from('settings').select('value').eq('id', 'location').single()
+    if (data && data.value && data.value.lat) {
+      locationCoords = data.value
+      try { localStorage.setItem('wp-location', JSON.stringify(locationCoords)) } catch {}
+    }
+  } catch {}
+}
 
 async function fetchWeather(days) {
   const startStr = ymd(days[0])
@@ -118,7 +133,7 @@ async function fetchWeather(days) {
     }
   } catch {}
   const endStr = ymd(days[6])
-  const url = 'https://api.open-meteo.com/v1/forecast?latitude=52.09&longitude=5.12&daily=weather_code,temperature_2m_max,precipitation_sum,precipitation_probability_max,sunshine_duration&timezone=Europe/Amsterdam&start_date=' + startStr + '&end_date=' + endStr
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${locationCoords.lat}&longitude=${locationCoords.lon}&daily=weather_code,temperature_2m_max,precipitation_sum,precipitation_probability_max,sunshine_duration&timezone=Europe/Amsterdam&start_date=${startStr}&end_date=${endStr}`
   try {
     const resp = await fetch(url)
     if (!resp.ok) return null
@@ -292,6 +307,19 @@ function renderTasks() {
     const entry = state.entries.find(e => e.id === btn.dataset.id)
     if (entry) deleteOneWithUndo('entries', entry.id, entryToRow(entry), 'item').then(loadEntries)
   }))
+
+  const archiveList = $('archiveList'), archiveCount = $('archiveCount')
+  const recent = state.entries.slice().sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 20)
+  archiveCount.textContent = `(${recent.length})`
+  if (recent.length === 0) { archiveList.innerHTML = '<p class="empty-note">Nog geen items.</p>'; return }
+  archiveList.innerHTML = recent.map(e => {
+    let when = e.type === 'eenmalig' ? fmtDateFull(e.date || '')
+      : e.type === 'jaarlijks' ? ('Jaarlijks · ' + (e.date ? shortDate(new Date(e.date + 'T00:00:00')) : ''))
+      : e.type === 'periode' ? (fmtDateFull(e.date || '') + ' t/m ' + fmtDateFull(e.endDate || ''))
+      : (DAY_LABELS[e.weekday] ? 'Elke ' + DAY_LABELS[e.weekday].toLowerCase() : '')
+    if (e.time) when += (when ? ' · ' : '') + e.time
+    return `<li class="task-row"><div class="task-body"><div class="task-title">${esc(e.title)} ${e.category === 'eten' ? '' : chipHtml(e.who)}</div>${when ? `<div class="task-when mono">${esc(when)}</div>` : ''}</div></li>`
+  }).join('')
 }
 
 $('clearBoard').addEventListener('click', async () => {
@@ -1116,6 +1144,58 @@ prefDarkmode.addEventListener('change', () => {
   else document.documentElement.removeAttribute('data-theme')
   renderWeek(); renderTasks()
 })
+// ── location search ──
+const locInput = $('locationInput'), locResults = $('locationResults'), locCurrent = $('locationCurrent')
+locCurrent.textContent = locationCoords.name ? `Huidige locatie: ${locationCoords.name}` : ''
+let locTimer = null
+locInput.addEventListener('input', () => {
+  clearTimeout(locTimer)
+  const q = locInput.value.trim()
+  if (q.length < 2) { locResults.hidden = true; return }
+  locTimer = setTimeout(async () => {
+    try {
+      const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=5&language=nl&format=json`)
+      const json = await r.json()
+      if (!json.results || json.results.length === 0) { locResults.innerHTML = '<li>Geen resultaten</li>'; locResults.hidden = false; return }
+      locResults.innerHTML = json.results.map((r, i) => `<li data-idx="${i}">${esc(r.name)} <span class="loc-sub">${esc([r.admin1, r.country].filter(Boolean).join(', '))}</span></li>`).join('')
+      locResults.hidden = false
+      locResults.querySelectorAll('li').forEach(li => li.addEventListener('click', async () => {
+        const loc = json.results[li.dataset.idx]
+        if (!loc) return
+        locationCoords = { lat: loc.latitude, lon: loc.longitude, name: loc.name }
+        try { localStorage.setItem('wp-location', JSON.stringify(locationCoords)) } catch {}
+        await dbWrite('update', 'settings', { id: 'location', data: { value: locationCoords } })
+        locCurrent.textContent = `Huidige locatie: ${loc.name}`
+        locInput.value = ''
+        locResults.hidden = true
+        localStorage.removeItem('wp-weather')
+        weatherCache.data = null; weatherCache.fetched = 0
+        state.weather = null; renderWeek()
+        toast(`Locatie ingesteld op ${loc.name}`)
+      }))
+    } catch {}
+  }, 400)
+})
+
+$('btnTestDigest').addEventListener('click', () => {
+  const btn = $('btnTestDigest')
+  if (btn.disabled) return
+  btn.disabled = true
+  let sec = 10
+  btn.textContent = `Digest over ${sec}s…`
+  const iv = setInterval(() => {
+    sec--
+    if (sec > 0) { btn.textContent = `Digest over ${sec}s…`; return }
+    clearInterval(iv)
+    btn.textContent = 'Wordt verstuurd…'
+    fetch('/api/digest', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: localStorage.getItem('wp-auth') }) })
+      .then(r => r.json())
+      .then(json => { if (json.ok) toast(`Digest verstuurd naar ${json.sent} apparaat${json.sent !== 1 ? 'en' : ''}!`); else toast(json.error || 'Mislukt.') })
+      .catch(() => toast('Digest versturen mislukt.'))
+      .finally(() => { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;vertical-align:-3px;margin-right:6px"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>Test digest nu versturen' })
+  }, 1000)
+})
+
 $('btnCopyCalendar').addEventListener('click', () => {
   const url = window.location.origin + '/api/calendar'
   navigator.clipboard.writeText(url).then(() => toast('Agenda-link gekopieerd!')).catch(() => toast('Kopiëren mislukt.'))
@@ -1124,7 +1204,7 @@ $('btnLogout').addEventListener('click', () => { localStorage.removeItem('wp-aut
 
 // ── init ──
 async function init() {
-  await Promise.all([loadEntries(), loadGroceries(), loadFavorites()])
+  await Promise.all([loadEntries(), loadGroceries(), loadFavorites(), loadLocation()])
   subscribeRealtime()
   renderWeek()
   initReminders()

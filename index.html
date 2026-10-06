@@ -215,6 +215,10 @@
             </div>
             <ul id="taskList" class="task-list"></ul>
             <p id="taskEmpty" class="empty-note" hidden>Niets te doen — het bord is bij.</p>
+            <details class="archive-section" id="archiveSection">
+              <summary class="archive-toggle">Recent toegevoegd <span class="archive-count" id="archiveCount"></span></summary>
+              <ul id="archiveList" class="task-list archive-list"></ul>
+            </details>
           </div>
         </section>
         <section class="view" id="view-profile" hidden>
@@ -228,6 +232,19 @@
               <label class="setting-toggle"><input type="checkbox" id="pref-weather" checked /><span>Weer tonen bij dagen</span></label>
               <label class="setting-toggle"><input type="checkbox" id="pref-birthdays" checked /><span>Verjaardagen tonen in weekoverzicht</span></label>
               <label class="setting-toggle"><input type="checkbox" id="pref-darkmode" /><span>Donker thema</span></label>
+            </div>
+            <div class="settings-section-title">Locatie (weer)</div>
+            <div class="settings-group">
+              <div class="location-search">
+                <input type="text" id="locationInput" placeholder="Zoek je woonplaats…" autocomplete="off" />
+                <ul id="locationResults" class="location-results" hidden></ul>
+              </div>
+              <div class="location-current" id="locationCurrent"></div>
+            </div>
+            <div class="settings-section-title">Ochtend-digest</div>
+            <div class="settings-group">
+              <label class="setting-toggle"><input type="checkbox" id="pref-digest" checked /><span>Dagelijkse samenvatting (7:00)</span></label>
+              <button type="button" class="settings-link" id="btnTestDigest"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;vertical-align:-3px;margin-right:6px"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>Test digest nu versturen</button>
             </div>
             <div class="settings-section-title">Koppelingen</div>
             <div class="settings-links">

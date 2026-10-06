@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import webpush from 'web-push'
 
-const ALLOWED_TABLES = ['entries', 'boodschappen', 'favorieten', 'photos']
+const ALLOWED_TABLES = ['entries', 'boodschappen', 'favorieten', 'photos', 'settings']
 
 async function sendPushNotifications(supabase, entry, excludeUser) {
   const vapidPublic = process.env.VITE_VAPID_PUBLIC_KEY
