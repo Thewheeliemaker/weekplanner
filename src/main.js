@@ -929,7 +929,15 @@ function renderGroceries() {
   const ul = $('groceryList'), empty = $('groceryEmpty')
   if (state.groceries.length === 0) { ul.innerHTML = ''; empty.hidden = false; return }
   empty.hidden = true
-  const sorted = state.groceries.slice().sort((a, b) => { if (!!a.afgevinkt !== !!b.afgevinkt) return a.afgevinkt ? 1 : -1; return (a.createdAt || '').localeCompare(b.createdAt || '') })
+  const GROENTE = /tomaat|tomaten|komkommer|sla|paprika|ui|uien|wortel|wortels|broccoli|spinazie|courgette|champignon|champignons|bloemkool|prei|bonen|doperwt|mais|radijs|aubergine|avocado|groente|groenten|salade|rucola|andijvie|boerenkool|spruitjes|aardappel|aardappelen|aardappels|pieper|piepers|krieltjes|fruit|appel|appels|peer|peren|banaan|bananen|druiven|aardbei|aardbeien|citroen|sinaasappel|mango|kiwi|bessen|frambozen|blauwe bessen|mandarijn|mandarijnen|ananas|meloen|pruim|pruimen/i
+  const VLEES = /kip|kipfilet|kippenfilet|gehakt|biefstuk|spek|worst|worstjes|rookworst|hamburger|bal|ballen|gehaktbal|karbonades|schnitzel|slavink|slavinken|draadjesvlees|rundvlees|varkensvlees|lamsvlees|shoarma|gyros|bacon|ham|filet|riblappen|stoofvlees|vis|zalm|garnalen|kabeljauw|tonijn|pangasius|tilapia|kibbeling/i
+  function groceryCategory(naam) { if (GROENTE.test(naam)) return 0; if (VLEES.test(naam)) return 1; return 2 }
+  const sorted = state.groceries.slice().sort((a, b) => {
+    if (!!a.afgevinkt !== !!b.afgevinkt) return a.afgevinkt ? 1 : -1
+    const ca = groceryCategory(a.naam), cb = groceryCategory(b.naam)
+    if (ca !== cb) return ca - cb
+    return (a.createdAt || '').localeCompare(b.createdAt || '')
+  })
   ul.innerHTML = sorted.map(g =>
     `<li class="check-row"><button class="grocery-check${g.afgevinkt ? ' is-checked' : ''}" data-id="${esc(g.id)}" aria-label="Afvinken"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"></path></svg></button><div class="check-body"><span class="check-title${g.afgevinkt ? ' is-done' : ''}">${esc(g.naam)}</span></div><button class="icon-btn g-del" data-id="${esc(g.id)}" aria-label="Verwijderen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-8 0 1 12a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1l1-12"></path></svg></button></li>`
   ).join('')
