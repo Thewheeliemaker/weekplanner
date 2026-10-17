@@ -124,18 +124,21 @@ export default async function handler(req, res) {
   const dayName = DAY_NAMES[d.getDay()]
   const dateLabel = `${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`
 
-  const [entriesRes, subsRes, locationRes] = await Promise.all([
+  const [entriesRes, subsRes, locationRes, optoutRes] = await Promise.all([
     supabase.from('entries').select('*'),
     supabase.from('push_subscriptions').select('*'),
-    supabase.from('settings').select('value').eq('id', 'location').single()
+    supabase.from('settings').select('value').eq('id', 'location').single(),
+    supabase.from('settings').select('value').eq('id', 'digest_optout').single()
   ])
 
   const loc = locationRes.data?.value || { lat: 52.09, lon: 5.12 }
   const weather = await fetchWeather(loc.lat, loc.lon)
+  const optout = Array.isArray(optoutRes.data?.value) ? optoutRes.data.value : []
 
   if (entriesRes.error) return res.status(500).json({ error: 'DB error' })
-  const subs = subsRes.data || []
-  if (subs.length === 0) return res.status(200).json({ ok: true, skipped: true, reason: 'Geen abonnees' })
+  const allSubs = subsRes.data || []
+  const subs = allSubs.filter(s => !optout.includes(s.user_name))
+  if (subs.length === 0) return res.status(200).json({ ok: true, skipped: true, reason: 'Geen abonnees (of iedereen heeft digest uit)' })
 
   const allEntries = entriesRes.data || []
   const todayItems = entriesToday(allEntries, today)

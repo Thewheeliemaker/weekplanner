@@ -8,3 +8,4 @@ alter table settings enable row level security;
 create policy "settings_all" on settings for all using (true) with check (true);
 
 insert into settings (id, value) values ('location', '{"lat": 52.09, "lon": 5.12, "name": "Utrecht"}');
+insert into settings (id, value) values ('digest_optout', '[]');

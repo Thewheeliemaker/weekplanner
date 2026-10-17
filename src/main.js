@@ -1144,6 +1144,26 @@ prefDarkmode.addEventListener('change', () => {
   else document.documentElement.removeAttribute('data-theme')
   renderWeek(); renderTasks()
 })
+// ── digest opt-out ──
+const prefDigest = $('pref-digest')
+let digestOptout = []
+async function loadDigestPref() {
+  try {
+    const { data } = await supabase.from('settings').select('value').eq('id', 'digest_optout').single()
+    if (data && Array.isArray(data.value)) digestOptout = data.value
+  } catch {}
+  prefDigest.checked = !digestOptout.includes(state.currentUser)
+}
+loadDigestPref()
+prefDigest.addEventListener('change', async () => {
+  const user = state.currentUser
+  if (!user) return
+  if (prefDigest.checked) digestOptout = digestOptout.filter(u => u !== user)
+  else if (!digestOptout.includes(user)) digestOptout.push(user)
+  await dbWrite('update', 'settings', { id: 'digest_optout', data: { value: digestOptout } })
+  toast(prefDigest.checked ? 'Dagelijkse digest ingeschakeld' : 'Dagelijkse digest uitgeschakeld')
+})
+
 // ── location search ──
 const locInput = $('locationInput'), locResults = $('locationResults'), locCurrent = $('locationCurrent')
 locCurrent.textContent = locationCoords.name ? `Huidige locatie: ${locationCoords.name}` : ''
