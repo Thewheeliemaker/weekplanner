@@ -428,7 +428,7 @@ function renderWeek() {
   const theadHtml = '<thead><tr><th class="day-th">Dag</th>' + visibleCols.map(col => {
     const active = state.filterWho === col
     const cls = 'col-clickable' + (active ? ' is-filtered' : '')
-    if (col === 'Algemeen') return `<th class="${cls}" data-col="${esc(col)}" style="color:var(--ink-soft);border-bottom:3px dashed var(--border);">Algemeen</th>`
+    if (col === 'Algemeen') return `<th class="${cls} col-algemeen" data-col="${esc(col)}">Algemeen</th>`
     const c = hueColors(FAMILY_HUE[col])
     return `<th class="${cls}" data-col="${esc(col)}" style="color:${c.fg};border-bottom:3px solid ${c.fg};">${esc(col)}</th>`
   }).join('') + '</tr></thead>'
@@ -442,7 +442,7 @@ function renderWeek() {
         const t = showTimeForDay(e, dStr)
         return `<div class="ci" data-id="${esc(e.id)}" title="${esc(entryTooltip(e))}">${entryIconHtml(e, col)}<span class="ci-dot ${e.opFysiekBord ? 'on-bord' : 'pending'}" title="${e.opFysiekBord ? 'Staat op het bord' : 'Nog overzetten'}"></span>${t ? `<span class="ci-time mono">${esc(t)}</span>` : ''}<span class="ci-title">${esc(e.title)}</span>${entryAgeBadge(e, dStr)}${e.note ? '<svg class="ci-note" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>' : ''}<button class="ci-del" data-id="${esc(e.id)}" data-date="${esc(dStr)}" aria-label="Verwijderen">×</button></div>`
       }).join('')
-      return `<td>${body}<button class="cell-add" data-date="${esc(dStr)}" data-dayname="${esc(dName)}" data-who="${esc(col)}">+</button></td>`
+      return `<td${col === 'Algemeen' ? ' class="col-algemeen"' : ''}>${body}<button class="cell-add" data-date="${esc(dStr)}" data-dayname="${esc(dName)}" data-who="${esc(col)}">+</button></td>`
     }).join('')
     const wHtml = state.weather ? weatherHtml(dStr, state.weather) : ''
     return `<tr class="${isToday ? 'is-today' : ''}"><td class="day-td"><div class="day-head"><span class="day-abbr">${DAY_ABBR[dName]}</span> <span class="day-num mono">${shortDate(day)}</span></div>${wHtml}<button class="day-add" data-date="${esc(dStr)}" data-dayname="${esc(dName)}" aria-label="Item toevoegen op ${DAY_LABELS[dName]}">+</button></td>${tds}</tr>`
