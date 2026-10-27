@@ -103,24 +103,21 @@
                     <button type="button" id="typePeriod">Periode</button>
                   </div>
                 </div>
-                <div class="field-row" id="weekdayRow">
-                  <div class="field" id="weekdayField">
-                    <label for="f-weekday">Dag</label>
-                    <select id="f-weekday">
-                      <option value="maandag">Maandag</option><option value="dinsdag">Dinsdag</option><option value="woensdag">Woensdag</option>
-                      <option value="donderdag">Donderdag</option><option value="vrijdag">Vrijdag</option><option value="zaterdag">Zaterdag</option><option value="zondag">Zondag</option>
-                    </select>
-                  </div>
-                  <div class="field" id="endDateField">
-                    <label for="f-enddate" id="endDateFieldLabel">Tot en met (optioneel)</label>
-                    <input type="date" id="f-enddate" />
-                  </div>
+                <div class="field" id="weekdayField">
+                  <label for="f-weekday">Dag</label>
+                  <select id="f-weekday">
+                    <option value="maandag">Maandag</option><option value="dinsdag">Dinsdag</option><option value="woensdag">Woensdag</option>
+                    <option value="donderdag">Donderdag</option><option value="vrijdag">Vrijdag</option><option value="zaterdag">Zaterdag</option><option value="zondag">Zondag</option>
+                  </select>
                 </div>
-                <div class="field-row" id="dateRow" hidden></div>
                 <div class="field" id="dateField" hidden>
                   <label for="f-date" id="dateFieldLabel">Datum</label>
                   <input type="date" id="f-date" />
                   <p class="ai-hint" id="dateFieldHint" hidden style="margin-top:2px;">Alleen dag en maand tellen mee — dit komt jaarlijks terug.</p>
+                </div>
+                <div class="field" id="endDateField" hidden>
+                  <label for="f-enddate" id="endDateFieldLabel">Tot en met</label>
+                  <input type="date" id="f-enddate" />
                 </div>
                 <div class="field" id="birthYearField" hidden>
                   <label for="f-birthyear">Geboortejaar (optioneel)</label>
