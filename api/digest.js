@@ -49,6 +49,7 @@ function entriesToday(entries, today) {
     if (e.type === 'eenmalig' && e.date === today) return true
     if (e.type === 'wekelijks' && e.weekday === weekday) {
       if (e.skip_dates && e.skip_dates.includes(today)) return false
+      if (e.date && today < e.date) return false
       if (e.end_date && today > e.end_date) return false
       return true
     }
@@ -120,6 +121,13 @@ export default async function handler(req, res) {
   const supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 
   const today = todayInAmsterdam()
+  const forceTest = req.method === 'POST' && req.body?.test === true
+
+  if (!forceTest) {
+    const { data: lastSent } = await supabase.from('settings').select('value').eq('id', 'digest_last_sent').single()
+    if (lastSent?.value === today) return res.status(200).json({ ok: true, skipped: true, reason: 'Al verstuurd vandaag' })
+  }
+
   const d = new Date(today + 'T12:00:00')
   const dayName = DAY_NAMES[d.getDay()]
   const dateLabel = `${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`
@@ -187,6 +195,10 @@ export default async function handler(req, res) {
         await supabase.from('push_subscriptions').delete().eq('id', sub.id)
       }
     }
+  }
+
+  if (sent > 0 && !forceTest) {
+    await supabase.from('settings').upsert({ id: 'digest_last_sent', value: today }, { onConflict: 'id' })
   }
 
   res.status(200).json({ ok: true, sent, items: lines.length })

@@ -350,6 +350,7 @@ function entryMatchesDay(e, dName, dStr) {
   if (e.type === 'jaarlijks') return !!e.date && monthDay(e.date) === monthDay(dStr)
   if (e.type === 'periode') return !!e.date && !!e.endDate && dStr >= e.date && dStr <= e.endDate
   if (e.weekday !== dName) return false
+  if (e.date && dStr < e.date) return false
   if (e.endDate && dStr > e.endDate) return false
   return true
 }
@@ -692,7 +693,8 @@ $('f-back').addEventListener('click', () => { $('itemForm').hidden = true; $('qu
 $('quick-manual').addEventListener('click', () => {
   $('itemForm').reset(); setTimePicker(''); $('categoryField').hidden = true; $('quick-hint').hidden = true
   if (state.addForDate) {
-    $('typeOnce').click()
+    $('typeWeekly').click()
+    $('f-weekday').value = state.addForDate.dayName
     $('f-date').value = state.addForDate.date
     if (state.addForDate.who) setWho(state.addForDate.who)
     else if (state.currentUser) setWho(state.currentUser)
@@ -776,7 +778,7 @@ const endDateFieldLabel = $('endDateFieldLabel'), dateField = $('dateField'), da
 function setTypeButtons(active) { [typeWeekly, typeYearly, typeOnce, typePeriod].forEach(b => b.classList.toggle('is-active', b === active)) }
 function restoreFieldOrder() { weekdayRow.parentNode.insertBefore(weekdayRow, dateField) }
 
-typeWeekly.addEventListener('click', () => { state.addType = 'wekelijks'; setTypeButtons(typeWeekly); restoreFieldOrder(); weekdayRow.style.gridTemplateColumns = ''; weekdayField.hidden = false; endDateField.hidden = false; dateField.hidden = true; endDateFieldLabel.textContent = 'Tot en met (optioneel)'; dateFieldHint.hidden = true; $('f-enddate').min = ''; $('birthYearField').hidden = true })
+typeWeekly.addEventListener('click', () => { state.addType = 'wekelijks'; setTypeButtons(typeWeekly); restoreFieldOrder(); weekdayRow.style.gridTemplateColumns = ''; weekdayField.hidden = false; endDateField.hidden = false; dateField.hidden = false; dateFieldLabel.textContent = 'Vanaf (optioneel)'; endDateFieldLabel.textContent = 'Tot en met (optioneel)'; dateFieldHint.hidden = true; syncEndDateMin(); $('birthYearField').hidden = true })
 typeYearly.addEventListener('click', () => { state.addType = 'jaarlijks'; setTypeButtons(typeYearly); restoreFieldOrder(); weekdayField.hidden = true; endDateField.hidden = true; dateField.hidden = false; dateFieldLabel.textContent = 'Datum (dit jaar)'; dateFieldHint.hidden = false; $('f-enddate').value = ''; $('birthYearField').hidden = false })
 typeOnce.addEventListener('click', () => { state.addType = 'eenmalig'; setTypeButtons(typeOnce); restoreFieldOrder(); weekdayField.hidden = true; endDateField.hidden = true; dateField.hidden = false; dateFieldLabel.textContent = 'Datum'; dateFieldHint.hidden = true; $('f-enddate').value = ''; $('birthYearField').hidden = true })
 typePeriod.addEventListener('click', () => { state.addType = 'periode'; setTypeButtons(typePeriod); dateField.parentNode.insertBefore(dateField, weekdayRow); weekdayField.hidden = true; weekdayRow.style.gridTemplateColumns = '1fr'; endDateField.hidden = false; endDateFieldLabel.textContent = 'Tot en met'; dateField.hidden = false; dateFieldLabel.textContent = 'Vanaf'; dateFieldHint.hidden = true; syncEndDateMin(); $('birthYearField').hidden = true })
@@ -807,7 +809,7 @@ $('itemForm').addEventListener('submit', async (ev) => {
   const row = {
     title, who, type: state.addType,
     weekday: state.addType === 'wekelijks' ? weekday : null,
-    date: (state.addType === 'eenmalig' || state.addType === 'jaarlijks' || state.addType === 'periode') ? date : null,
+    date: (state.addType === 'eenmalig' || state.addType === 'jaarlijks' || state.addType === 'periode') ? date : (state.addType === 'wekelijks' && date) ? date : null,
     end_date: (state.addType === 'wekelijks' && endDate) ? endDate : (state.addType === 'periode' ? endDate : null),
     time: time || '', note, category,
     reminder_minutes: reminderVal !== '' ? parseInt(reminderVal) : null,
@@ -1208,7 +1210,7 @@ $('btnTestDigest').addEventListener('click', () => {
     if (sec > 0) { btn.textContent = `Digest over ${sec}s…`; return }
     clearInterval(iv)
     btn.textContent = 'Wordt verstuurd…'
-    fetch('/api/digest', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: localStorage.getItem('wp-auth') }) })
+    fetch('/api/digest', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: localStorage.getItem('wp-auth'), test: true }) })
       .then(r => r.json())
       .then(json => { if (json.ok) toast(`Digest verstuurd naar ${json.sent} apparaat${json.sent !== 1 ? 'en' : ''}!`); else toast(json.error || 'Mislukt.') })
       .catch(() => toast('Digest versturen mislukt.'))
@@ -1234,6 +1236,18 @@ async function init() {
   }
   const hint = $('swipeHint')
   if (hint && localStorage.getItem('wp-swipe-seen')) hint.hidden = true
+
+  const hour = new Date().getHours()
+  if (hour >= 6 && hour < 12) {
+    try {
+      const today = new Date().toISOString().slice(0, 10)
+      const lastTrigger = localStorage.getItem('wp-digest-trigger')
+      if (lastTrigger !== today) {
+        localStorage.setItem('wp-digest-trigger', today)
+        fetch('/api/digest', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: localStorage.getItem('wp-auth') }) })
+      }
+    } catch {}
+  }
 }
 
 ;(async function boot() {

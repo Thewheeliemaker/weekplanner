@@ -31,7 +31,7 @@ function buildICS(entries) {
       if (e.time) { lines.push('DTSTART;TZID=' + TZ + ':' + icsDate(e.date, e.time)); lines.push('DTEND;TZID=' + TZ + ':' + icsDate(e.date, addHour(e.time))) }
       else lines.push('DTSTART;VALUE=DATE:' + icsDate(e.date))
     } else if (e.type === 'wekelijks' && e.weekday) {
-      const ref = firstOccurrence(e.weekday, e.created_at)
+      const ref = e.date || firstOccurrence(e.weekday, e.created_at)
       if (e.time) { lines.push('DTSTART;TZID=' + TZ + ':' + icsDate(ref, e.time)); lines.push('DTEND;TZID=' + TZ + ':' + icsDate(ref, addHour(e.time))) }
       else lines.push('DTSTART;VALUE=DATE:' + icsDate(ref))
       let rrule = 'RRULE:FREQ=WEEKLY;BYDAY=' + DAY_TO_RRULE[e.weekday]
