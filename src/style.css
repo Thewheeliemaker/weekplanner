@@ -15,6 +15,7 @@
 :root[data-user="Siem"] { --accent: #3a72b5; --accent-ink: #1e4470; --accent-soft: #dfe9f5; --focus: #3a72b5; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
+    color-scheme: dark;
     --bg: #17191b; --surface: #212426; --surface-2: #2a2d2f; --border: #383c3e;
     --ink: #eeece5; --ink-soft: #a9adaf; --ink-faint: #797d80;
     --accent: #57c2ba; --accent-ink: #d6f3ef; --accent-soft: #1c3634;
@@ -27,6 +28,7 @@
   :root[data-user="Siem"]:not([data-theme="light"]) { --accent: #6ba3e0; --accent-ink: #d6e8f8; --accent-soft: #1a2a3a; --focus: #6ba3e0; }
 }
 :root[data-theme="dark"] {
+  color-scheme: dark;
   --bg: #17191b; --surface: #212426; --surface-2: #2a2d2f; --border: #383c3e;
   --ink: #eeece5; --ink-soft: #a9adaf; --ink-faint: #797d80;
   --accent: #57c2ba; --accent-ink: #d6f3ef; --accent-soft: #1c3634;
@@ -98,7 +100,7 @@ input, select, textarea { font: inherit; color: inherit; }
 .add-panel h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 4px; }
 .field { display: flex; flex-direction: column; gap: 4px; }
 .field label { font-size: 0.76rem; font-weight: 600; color: var(--ink-soft); }
-.field input, .field select, .field textarea, #quick-text { border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 8px 10px; font-size: 0.88rem; width: 100%; }
+.field input, .field select, .field textarea, #quick-text { border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 8px 10px; font-size: 0.88rem; width: 100%; max-width: 100%; }
 .time-picker { display: flex; align-items: center; gap: 4px; }
 .time-picker select { border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 8px 6px; font-size: 0.88rem; width: auto; flex: 1; text-align: center; }
 .time-sep { font-weight: 700; color: var(--ink-soft); font-size: 1rem; }
@@ -108,7 +110,8 @@ input, select, textarea { font: inherit; color: inherit; }
 .who-tag.is-active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .field textarea, #quick-text { resize: vertical; min-height: 46px; }
 .add-form { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
-.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; overflow: hidden; }
+.field-row > * { min-width: 0; }
 @media (max-width: 480px) { .field-row { grid-template-columns: 1fr; } }
 .field-row-3 { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 10px; }
 @media (max-width: 480px) { .field-row-3 { grid-template-columns: 1fr; } }
