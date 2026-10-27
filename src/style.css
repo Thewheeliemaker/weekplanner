@@ -109,6 +109,7 @@ input, select, textarea { font: inherit; color: inherit; }
 .field textarea, #quick-text { resize: vertical; min-height: 46px; }
 .add-form { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 380px) { .field-row { grid-template-columns: 1fr; } }
 .field-row-3 { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 10px; }
 @media (max-width: 480px) { .field-row-3 { grid-template-columns: 1fr; } }
 .type-toggle { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -284,7 +285,7 @@ table.week-table { border-collapse: collapse; width: 100%; min-width: 620px; tab
 /* ── form panels distinction ── */
 .add-panel { border: 2px dashed var(--accent); border-radius: var(--radius-sm); background: var(--accent-soft); padding: 16px; margin-top: 14px; }
 .add-panel h3 { color: var(--accent-ink); }
-.add-panel input[type="date"], .add-panel input[type="time"], .add-panel select {
+.scan-entry input[type="date"], .scan-entry input[type="time"], .scan-entry select {
   border: 1px solid var(--border); background: var(--surface); border-radius: 6px;
   padding: 4px 8px; font-size: 0.82rem; color: var(--ink);
 }
