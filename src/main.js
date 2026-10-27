@@ -1175,18 +1175,24 @@ prefDigest.addEventListener('change', async () => {
   toast(prefDigest.checked ? 'Dagelijkse digest ingeschakeld' : 'Dagelijkse digest uitgeschakeld')
 })
 
-// ── digest time ──
+// ── digest time (per user) ──
 const prefDigestTime = $('pref-digest-time')
+let digestTimes = {}
 async function loadDigestTime() {
   try {
-    const { data } = await supabase.from('settings').select('value').eq('id', 'digest_time').single()
-    if (data?.value) prefDigestTime.value = data.value
+    const { data } = await supabase.from('settings').select('value').eq('id', 'digest_times').single()
+    if (data?.value && typeof data.value === 'object') digestTimes = data.value
   } catch {}
+  if (state.currentUser && digestTimes[state.currentUser]) {
+    prefDigestTime.value = digestTimes[state.currentUser]
+  }
 }
 loadDigestTime()
 prefDigestTime.addEventListener('change', async () => {
-  await dbWrite('update', 'settings', { id: 'digest_time', data: { value: prefDigestTime.value } })
-  toast(`Digest-tijdstip ingesteld op ${prefDigestTime.value}`)
+  if (!state.currentUser) return
+  digestTimes[state.currentUser] = prefDigestTime.value
+  await dbWrite('update', 'settings', { id: 'digest_times', data: { value: digestTimes } })
+  toast(`Digest om ${prefDigestTime.value} voor ${state.currentUser}`)
 })
 
 // ── location search ──
@@ -1263,9 +1269,9 @@ async function init() {
   try {
     const now = new Date()
     const hhmm = now.toLocaleTimeString('nl-NL', { timeZone: 'Europe/Amsterdam', hour: '2-digit', minute: '2-digit', hour12: false })
-    const { data: timePref } = await supabase.from('settings').select('value').eq('id', 'digest_time').single()
-    const digestTime = timePref?.value || '07:00'
-    if (hhmm >= digestTime && hhmm < '12:00') {
+    const { data: timesData } = await supabase.from('settings').select('value').eq('id', 'digest_times').single()
+    const userTime = (timesData?.value && timesData.value[state.currentUser]) || '07:00'
+    if (hhmm >= userTime && hhmm < '12:00') {
       const today = now.toISOString().slice(0, 10)
       const lastTrigger = localStorage.getItem('wp-digest-trigger')
       if (lastTrigger !== today) {

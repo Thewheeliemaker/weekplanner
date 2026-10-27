@@ -122,36 +122,43 @@ export default async function handler(req, res) {
 
   const today = todayInAmsterdam()
   const forceTest = req.method === 'POST' && req.body?.test === true
+  const nowAmsterdam = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Amsterdam', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date())
 
-  if (!forceTest) {
-    const { data: lastSent } = await supabase.from('settings').select('value').eq('id', 'digest_last_sent').single()
-    if (lastSent?.value === today) return res.status(200).json({ ok: true, skipped: true, reason: 'Al verstuurd vandaag' })
+  const [entriesRes, subsRes, locationRes, optoutRes, timesRes, lastSentRes] = await Promise.all([
+    supabase.from('entries').select('*'),
+    supabase.from('push_subscriptions').select('*'),
+    supabase.from('settings').select('value').eq('id', 'location').single(),
+    supabase.from('settings').select('value').eq('id', 'digest_optout').single(),
+    supabase.from('settings').select('value').eq('id', 'digest_times').single(),
+    supabase.from('settings').select('value').eq('id', 'digest_last_sent').single()
+  ])
 
-    const { data: timePref } = await supabase.from('settings').select('value').eq('id', 'digest_time').single()
-    const digestTime = timePref?.value || '07:00'
-    const nowAmsterdam = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Amsterdam', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date())
-    if (nowAmsterdam < digestTime) return res.status(200).json({ ok: true, skipped: true, reason: `Te vroeg — digest staat op ${digestTime}` })
-  }
+  if (entriesRes.error) return res.status(500).json({ error: 'DB error' })
+
+  const optout = Array.isArray(optoutRes.data?.value) ? optoutRes.data.value : []
+  const digestTimes = (timesRes.data?.value && typeof timesRes.data.value === 'object') ? timesRes.data.value : {}
+  const rawLastSent = lastSentRes.data?.value
+  const lastSentMap = (rawLastSent && typeof rawLastSent === 'object' && !Array.isArray(rawLastSent))
+    ? rawLastSent
+    : {}
+
+  const allSubs = (subsRes.data || []).filter(s => !optout.includes(s.user_name))
+  const subsToSend = forceTest
+    ? allSubs
+    : allSubs.filter(s => {
+        if (lastSentMap[s.user_name] === today) return false
+        const userTime = digestTimes[s.user_name] || '07:00'
+        return nowAmsterdam >= userTime
+      })
+
+  if (subsToSend.length === 0) return res.status(200).json({ ok: true, skipped: true, reason: 'Niemand om naar te sturen op dit moment' })
+
+  const loc = locationRes.data?.value || { lat: 52.09, lon: 5.12 }
+  const weather = await fetchWeather(loc.lat, loc.lon)
 
   const d = new Date(today + 'T12:00:00')
   const dayName = DAY_NAMES[d.getDay()]
   const dateLabel = `${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`
-
-  const [entriesRes, subsRes, locationRes, optoutRes] = await Promise.all([
-    supabase.from('entries').select('*'),
-    supabase.from('push_subscriptions').select('*'),
-    supabase.from('settings').select('value').eq('id', 'location').single(),
-    supabase.from('settings').select('value').eq('id', 'digest_optout').single()
-  ])
-
-  const loc = locationRes.data?.value || { lat: 52.09, lon: 5.12 }
-  const weather = await fetchWeather(loc.lat, loc.lon)
-  const optout = Array.isArray(optoutRes.data?.value) ? optoutRes.data.value : []
-
-  if (entriesRes.error) return res.status(500).json({ error: 'DB error' })
-  const allSubs = subsRes.data || []
-  const subs = allSubs.filter(s => !optout.includes(s.user_name))
-  if (subs.length === 0) return res.status(200).json({ ok: true, skipped: true, reason: 'Geen abonnees (of iedereen heeft digest uit)' })
 
   const allEntries = entriesRes.data || []
   const todayItems = entriesToday(allEntries, today)
@@ -171,8 +178,6 @@ export default async function handler(req, res) {
   for (const e of rest) lines.push(formatEntry(e))
   for (const e of dinner) lines.push(`🍽️ ${e.title}`)
 
-  const title = `Goedemorgen ${weatherShort}`
-
   let body = `${dayName} ${dateLabel}\n`
   if (lines.length > 0) body += '\n' + lines.join('\n')
   else body += '\nGeen items vandaag'
@@ -186,15 +191,16 @@ export default async function handler(req, res) {
 
   const GREETINGS = { Merel: 'Goedemorgen schoonheid', Mare: 'Goedemorgen scheetje', Siem: 'Goedemorgen kakkie' }
 
-  const payload = JSON.stringify({ title, body, tag: 'digest' })
   let sent = 0
-  for (const sub of subs) {
+  const sentUsers = []
+  for (const sub of subsToSend) {
     const greeting = GREETINGS[sub.user_name] || 'Goedemorgen'
     const personalTitle = `${greeting} ${weatherShort}`
     const personalPayload = JSON.stringify({ title: personalTitle, body, tag: 'digest' })
     try {
       await webpush.sendNotification(JSON.parse(sub.subscription), personalPayload)
       sent++
+      if (!sentUsers.includes(sub.user_name)) sentUsers.push(sub.user_name)
     } catch (err) {
       if (err.statusCode === 410 || err.statusCode === 404) {
         await supabase.from('push_subscriptions').delete().eq('id', sub.id)
@@ -203,8 +209,22 @@ export default async function handler(req, res) {
   }
 
   if (sent > 0 && !forceTest) {
-    await supabase.from('settings').upsert({ id: 'digest_last_sent', value: today }, { onConflict: 'id' })
+    const updated = { ...lastSentMap }
+    for (const u of sentUsers) updated[u] = today
+    await supabase.from('settings').upsert({ id: 'digest_last_sent', value: updated }, { onConflict: 'id' })
   }
 
-  res.status(200).json({ ok: true, sent, items: lines.length })
+  // Weekly backup on Sundays
+  if (d.getDay() === 0 && !forceTest) {
+    try {
+      const { data: entries } = await supabase.from('entries').select('*').order('created_at', { ascending: true }).limit(10000)
+      if (entries) {
+        await supabase.from('backups').insert({ entries_json: entries, entry_count: entries.length })
+        const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 14)
+        await supabase.from('backups').delete().lt('created_at', cutoff.toISOString())
+      }
+    } catch {}
+  }
+
+  res.status(200).json({ ok: true, sent, sentUsers, items: lines.length })
 }
