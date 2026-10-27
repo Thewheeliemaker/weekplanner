@@ -776,9 +776,22 @@ const weekdayField = $('weekdayField'), weekdayRow = $('weekdayRow'), endDateFie
 const endDateFieldLabel = $('endDateFieldLabel'), dateField = $('dateField'), dateFieldLabel = $('dateFieldLabel'), dateFieldHint = $('dateFieldHint')
 
 function setTypeButtons(active) { [typeWeekly, typeYearly, typeOnce, typePeriod].forEach(b => b.classList.toggle('is-active', b === active)) }
-function restoreFieldOrder() { weekdayRow.parentNode.insertBefore(weekdayRow, dateField) }
+function restoreFieldOrder() {
+  weekdayRow.parentNode.insertBefore(weekdayRow, dateField)
+  if (!weekdayRow.contains(endDateField)) weekdayRow.appendChild(endDateField)
+}
 
-typeWeekly.addEventListener('click', () => { state.addType = 'wekelijks'; setTypeButtons(typeWeekly); restoreFieldOrder(); weekdayRow.style.gridTemplateColumns = ''; weekdayField.hidden = false; endDateField.hidden = false; dateField.hidden = false; dateFieldLabel.textContent = 'Vanaf (optioneel)'; endDateFieldLabel.textContent = 'Tot en met (optioneel)'; dateFieldHint.hidden = true; syncEndDateMin(); $('birthYearField').hidden = true })
+typeWeekly.addEventListener('click', () => {
+  state.addType = 'wekelijks'; setTypeButtons(typeWeekly); restoreFieldOrder()
+  weekdayRow.style.gridTemplateColumns = '1fr'; weekdayField.hidden = false
+  weekdayRow.removeChild(endDateField)
+  const parent = weekdayRow.parentNode
+  parent.insertBefore(dateField, weekdayRow.nextSibling)
+  parent.insertBefore(endDateField, dateField.nextSibling)
+  endDateField.hidden = false; dateField.hidden = false
+  dateFieldLabel.textContent = 'Vanaf (optioneel)'; endDateFieldLabel.textContent = 'Tot en met (optioneel)'
+  dateFieldHint.hidden = true; syncEndDateMin(); $('birthYearField').hidden = true
+})
 typeYearly.addEventListener('click', () => { state.addType = 'jaarlijks'; setTypeButtons(typeYearly); restoreFieldOrder(); weekdayField.hidden = true; endDateField.hidden = true; dateField.hidden = false; dateFieldLabel.textContent = 'Datum (dit jaar)'; dateFieldHint.hidden = false; $('f-enddate').value = ''; $('birthYearField').hidden = false })
 typeOnce.addEventListener('click', () => { state.addType = 'eenmalig'; setTypeButtons(typeOnce); restoreFieldOrder(); weekdayField.hidden = true; endDateField.hidden = true; dateField.hidden = false; dateFieldLabel.textContent = 'Datum'; dateFieldHint.hidden = true; $('f-enddate').value = ''; $('birthYearField').hidden = true })
 typePeriod.addEventListener('click', () => { state.addType = 'periode'; setTypeButtons(typePeriod); dateField.parentNode.insertBefore(dateField, weekdayRow); weekdayField.hidden = true; weekdayRow.style.gridTemplateColumns = '1fr'; endDateField.hidden = false; endDateFieldLabel.textContent = 'Tot en met'; dateField.hidden = false; dateFieldLabel.textContent = 'Vanaf'; dateFieldHint.hidden = true; syncEndDateMin(); $('birthYearField').hidden = true })
