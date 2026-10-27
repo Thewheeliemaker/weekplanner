@@ -126,6 +126,11 @@ export default async function handler(req, res) {
   if (!forceTest) {
     const { data: lastSent } = await supabase.from('settings').select('value').eq('id', 'digest_last_sent').single()
     if (lastSent?.value === today) return res.status(200).json({ ok: true, skipped: true, reason: 'Al verstuurd vandaag' })
+
+    const { data: timePref } = await supabase.from('settings').select('value').eq('id', 'digest_time').single()
+    const digestTime = timePref?.value || '07:00'
+    const nowAmsterdam = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Amsterdam', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date())
+    if (nowAmsterdam < digestTime) return res.status(200).json({ ok: true, skipped: true, reason: `Te vroeg — digest staat op ${digestTime}` })
   }
 
   const d = new Date(today + 'T12:00:00')

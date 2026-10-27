@@ -365,6 +365,9 @@ table.week-table { border-collapse: collapse; width: 100%; min-width: 620px; tab
 .settings-group { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
 .setting-toggle { display: flex; align-items: center; gap: 10px; font-size: 0.88rem; cursor: pointer; }
 .setting-toggle input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+.setting-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 0.88rem; }
+.setting-label { color: var(--ink); }
+.setting-select { border: 1px solid var(--border); background: var(--surface); color: var(--ink); border-radius: 8px; padding: 6px 10px; font-size: 0.88rem; font: inherit; }
 .settings-links { display: flex; flex-direction: column; margin-top: 8px; }
 .settings-link { display: flex; align-items: center; padding: 12px 0; border: none; background: none; font-size: 0.88rem; color: var(--accent-ink); cursor: pointer; border-bottom: 1px solid var(--border); }
 .settings-link:hover { color: var(--accent); }

@@ -243,7 +243,19 @@
             </div>
             <div class="settings-section-title">Ochtend-digest</div>
             <div class="settings-group">
-              <label class="setting-toggle"><input type="checkbox" id="pref-digest" checked /><span>Dagelijkse samenvatting (7:00)</span></label>
+              <label class="setting-toggle"><input type="checkbox" id="pref-digest" checked /><span>Dagelijkse samenvatting</span></label>
+              <div class="setting-row" id="digestTimeRow">
+                <label for="pref-digest-time" class="setting-label">Tijdstip</label>
+                <select id="pref-digest-time" class="setting-select">
+                  <option value="06:00">06:00</option>
+                  <option value="06:30">06:30</option>
+                  <option value="07:00" selected>07:00</option>
+                  <option value="07:30">07:30</option>
+                  <option value="08:00">08:00</option>
+                  <option value="08:30">08:30</option>
+                  <option value="09:00">09:00</option>
+                </select>
+              </div>
               <button type="button" class="settings-link" id="btnTestDigest"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;vertical-align:-3px;margin-right:6px"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>Test digest nu versturen</button>
             </div>
             <div class="settings-section-title">Koppelingen</div>

@@ -1175,6 +1175,20 @@ prefDigest.addEventListener('change', async () => {
   toast(prefDigest.checked ? 'Dagelijkse digest ingeschakeld' : 'Dagelijkse digest uitgeschakeld')
 })
 
+// ── digest time ──
+const prefDigestTime = $('pref-digest-time')
+async function loadDigestTime() {
+  try {
+    const { data } = await supabase.from('settings').select('value').eq('id', 'digest_time').single()
+    if (data?.value) prefDigestTime.value = data.value
+  } catch {}
+}
+loadDigestTime()
+prefDigestTime.addEventListener('change', async () => {
+  await dbWrite('update', 'settings', { id: 'digest_time', data: { value: prefDigestTime.value } })
+  toast(`Digest-tijdstip ingesteld op ${prefDigestTime.value}`)
+})
+
 // ── location search ──
 const locInput = $('locationInput'), locResults = $('locationResults'), locCurrent = $('locationCurrent')
 locCurrent.textContent = locationCoords.name ? `Huidige locatie: ${locationCoords.name}` : ''
@@ -1246,17 +1260,20 @@ async function init() {
   const hint = $('swipeHint')
   if (hint && localStorage.getItem('wp-swipe-seen')) hint.hidden = true
 
-  const hour = new Date().getHours()
-  if (hour >= 6 && hour < 12) {
-    try {
-      const today = new Date().toISOString().slice(0, 10)
+  try {
+    const now = new Date()
+    const hhmm = now.toLocaleTimeString('nl-NL', { timeZone: 'Europe/Amsterdam', hour: '2-digit', minute: '2-digit', hour12: false })
+    const { data: timePref } = await supabase.from('settings').select('value').eq('id', 'digest_time').single()
+    const digestTime = timePref?.value || '07:00'
+    if (hhmm >= digestTime && hhmm < '12:00') {
+      const today = now.toISOString().slice(0, 10)
       const lastTrigger = localStorage.getItem('wp-digest-trigger')
       if (lastTrigger !== today) {
         localStorage.setItem('wp-digest-trigger', today)
         fetch('/api/digest', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: localStorage.getItem('wp-auth') }) })
       }
-    } catch {}
-  }
+    }
+  } catch {}
 }
 
 ;(async function boot() {
