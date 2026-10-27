@@ -110,7 +110,7 @@ input, select, textarea { font: inherit; color: inherit; }
 .who-tag.is-active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .field textarea, #quick-text { resize: vertical; min-height: 46px; }
 .add-form { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
-.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; overflow: hidden; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .field-row > * { min-width: 0; }
 @media (max-width: 480px) { .field-row { grid-template-columns: 1fr; } }
 .field-row-3 { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 10px; }
