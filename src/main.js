@@ -772,22 +772,22 @@ timeH.addEventListener('change', () => { if (timeH.value && !timeM.value) timeM.
 timeM.addEventListener('change', syncTime)
 
 const typeWeekly = $('typeWeekly'), typeYearly = $('typeYearly'), typeOnce = $('typeOnce'), typePeriod = $('typePeriod')
-const weekdayField = $('weekdayField'), endDateField = $('endDateField')
+const weekdayField = $('weekdayField'), endDateField = $('endDateField'), dateRow = $('dateRow')
 const endDateFieldLabel = $('endDateFieldLabel'), dateField = $('dateField'), dateFieldLabel = $('dateFieldLabel'), dateFieldHint = $('dateFieldHint')
 
 function setTypeButtons(active) { [typeWeekly, typeYearly, typeOnce, typePeriod].forEach(b => b.classList.toggle('is-active', b === active)) }
 
 typeWeekly.addEventListener('click', () => {
   state.addType = 'wekelijks'; setTypeButtons(typeWeekly)
-  weekdayField.hidden = false; dateField.hidden = false; endDateField.hidden = false
+  weekdayField.hidden = false; dateRow.hidden = false; dateField.hidden = false; endDateField.hidden = false
   dateFieldLabel.textContent = 'Vanaf'; endDateFieldLabel.textContent = 'Tot en met'
   dateFieldHint.hidden = true; syncEndDateMin(); $('birthYearField').hidden = true
 })
-typeYearly.addEventListener('click', () => { state.addType = 'jaarlijks'; setTypeButtons(typeYearly); weekdayField.hidden = true; dateField.hidden = false; endDateField.hidden = true; dateFieldLabel.textContent = 'Datum (dit jaar)'; dateFieldHint.hidden = false; $('f-enddate').value = ''; $('birthYearField').hidden = false })
-typeOnce.addEventListener('click', () => { state.addType = 'eenmalig'; setTypeButtons(typeOnce); weekdayField.hidden = true; dateField.hidden = false; endDateField.hidden = true; dateFieldLabel.textContent = 'Datum'; dateFieldHint.hidden = true; $('f-enddate').value = ''; $('birthYearField').hidden = true })
+typeYearly.addEventListener('click', () => { state.addType = 'jaarlijks'; setTypeButtons(typeYearly); weekdayField.hidden = true; dateRow.hidden = false; dateField.hidden = false; endDateField.hidden = true; dateFieldLabel.textContent = 'Datum (dit jaar)'; dateFieldHint.hidden = false; $('f-enddate').value = ''; $('birthYearField').hidden = false })
+typeOnce.addEventListener('click', () => { state.addType = 'eenmalig'; setTypeButtons(typeOnce); weekdayField.hidden = true; dateRow.hidden = false; dateField.hidden = false; endDateField.hidden = true; dateFieldLabel.textContent = 'Datum'; dateFieldHint.hidden = true; $('f-enddate').value = ''; $('birthYearField').hidden = true })
 typePeriod.addEventListener('click', () => {
   state.addType = 'periode'; setTypeButtons(typePeriod)
-  weekdayField.hidden = true; dateField.hidden = false; endDateField.hidden = false
+  weekdayField.hidden = true; dateRow.hidden = false; dateField.hidden = false; endDateField.hidden = false
   dateFieldLabel.textContent = 'Vanaf'; endDateFieldLabel.textContent = 'Tot en met'
   dateFieldHint.hidden = true; syncEndDateMin(); $('birthYearField').hidden = true
 })

@@ -110,14 +110,16 @@
                     <option value="donderdag">Donderdag</option><option value="vrijdag">Vrijdag</option><option value="zaterdag">Zaterdag</option><option value="zondag">Zondag</option>
                   </select>
                 </div>
-                <div class="field" id="dateField" hidden>
-                  <label for="f-date" id="dateFieldLabel">Datum</label>
-                  <input type="date" id="f-date" />
-                  <p class="ai-hint" id="dateFieldHint" hidden style="margin-top:2px;">Alleen dag en maand tellen mee — dit komt jaarlijks terug.</p>
-                </div>
-                <div class="field" id="endDateField" hidden>
-                  <label for="f-enddate" id="endDateFieldLabel">Tot en met</label>
-                  <input type="date" id="f-enddate" />
+                <div class="date-fields" id="dateRow" hidden>
+                  <div class="field" id="dateField">
+                    <label for="f-date" id="dateFieldLabel">Datum</label>
+                    <input type="date" id="f-date" />
+                    <p class="ai-hint" id="dateFieldHint" hidden style="margin-top:2px;">Alleen dag en maand tellen mee — dit komt jaarlijks terug.</p>
+                  </div>
+                  <div class="field" id="endDateField" hidden>
+                    <label for="f-enddate" id="endDateFieldLabel">Tot en met</label>
+                    <input type="date" id="f-enddate" />
+                  </div>
                 </div>
                 <div class="field" id="birthYearField" hidden>
                   <label for="f-birthyear">Geboortejaar (optioneel)</label>
