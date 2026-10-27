@@ -790,7 +790,7 @@ typeWeekly.addEventListener('click', () => {
   if (weekdayRow.contains(endDateField)) weekdayRow.removeChild(endDateField)
   dateRow.appendChild(dateField); dateRow.appendChild(endDateField)
   dateRow.hidden = false; dateField.hidden = false; endDateField.hidden = false
-  dateFieldLabel.textContent = 'Vanaf (optioneel)'; endDateFieldLabel.textContent = 'Tot en met (optioneel)'
+  dateFieldLabel.textContent = 'Vanaf'; endDateFieldLabel.textContent = 'Tot en met'
   dateFieldHint.hidden = true; syncEndDateMin(); $('birthYearField').hidden = true
 })
 typeYearly.addEventListener('click', () => { state.addType = 'jaarlijks'; setTypeButtons(typeYearly); restoreFieldOrder(); weekdayField.hidden = true; endDateField.hidden = true; dateField.hidden = false; dateFieldLabel.textContent = 'Datum (dit jaar)'; dateFieldHint.hidden = false; $('f-enddate').value = ''; $('birthYearField').hidden = false })
