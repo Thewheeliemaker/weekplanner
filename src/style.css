@@ -61,11 +61,9 @@
 .p-Algemeen { --pc-bg: var(--alg-bg); --pc-ink: var(--alg-ink); --pc-dot: var(--alg-dot); }
 .p-Eten { --pc-bg: var(--eten-bg); --pc-ink: var(--eten-ink); --pc-dot: var(--eten-dot); }
 
-/* accent follows the logged-in person */
-:root { --accent: var(--rick-dot); --accent-ink: var(--rick-ink); --accent-soft: var(--rick-bg); }
-:root[data-user="Siem"] { --accent: var(--siem-dot); --accent-ink: var(--siem-ink); --accent-soft: var(--siem-bg); }
-:root[data-user="Mare"] { --accent: var(--mare-dot); --accent-ink: var(--mare-ink); --accent-soft: var(--mare-bg); }
-:root[data-user="Merel"] { --accent: var(--merel-dot); --accent-ink: var(--merel-ink); --accent-soft: var(--merel-bg); }
+/* one app colour for everyone (amber, like the logo and + button); light/dark come from the tokens above.
+   Person colours are only used for items, filters and avatars. */
+:root { --accent: var(--warn); --accent-ink: var(--weather-ink); --accent-soft: var(--weather-bg); }
 
 /* ── base ── */
 * { box-sizing: border-box; }
@@ -324,7 +322,7 @@ details[open] > .archive-toggle::before { transform: rotate(90deg); }
 
 /* ── profile ── */
 .profile-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
-.profile-avatar { width: 48px; height: 48px; border-radius: 50%; background: var(--accent-soft); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 1.2rem; color: var(--accent-ink); flex: none; }
+.profile-avatar { width: 48px; height: 48px; border-radius: 50%; background: var(--pc-bg, var(--accent-soft)); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 1.2rem; color: var(--pc-ink, var(--accent-ink)); flex: none; }
 .profile-name { font-weight: 600; font-size: 1.15rem; }
 .profile-sub { font-size: 0.86rem; color: var(--ink-soft); }
 .settings-section-title { font-size: 0.8rem; font-weight: 500; color: var(--ink-faint); margin: 20px 0 6px; }

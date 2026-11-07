@@ -797,7 +797,7 @@ function showView(view) {
   VIEWS.forEach(v => { $('view-' + v).hidden = v !== view })
   closeFabMenu(); closeInlineDetail()
   if (view === 'board') markNewAsSeen()
-  if (view === 'profile') { $('profileUser').textContent = state.currentUser || '—'; $('profileAvatar').textContent = state.currentUser ? state.currentUser.charAt(0).toUpperCase() : '—' }
+  if (view === 'profile') { $('profileUser').textContent = state.currentUser || '—'; $('profileAvatar').textContent = state.currentUser ? state.currentUser.charAt(0).toUpperCase() : '—'; $('profileAvatar').className = 'profile-avatar' + (state.currentUser ? ' ' + personClass(state.currentUser) : '') }
   if (view === 'today') { renderToday(); loadTodayWeather() }
   window.scrollTo(0, 0)
 }
