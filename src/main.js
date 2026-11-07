@@ -123,19 +123,50 @@ function showChoiceModal(title, message, choices) {
 }
 
 // ── weather ──
-const WEATHER_ICON = {
-  0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️',
-  45: '🌫️', 48: '🌫️',
-  51: '🌦️', 53: '🌦️', 55: '🌧️',
-  56: '🌧️', 57: '🌧️',
-  61: '🌦️', 63: '🌧️', 65: '🌧️',
-  66: '🌧️', 67: '🌧️',
-  71: '🌨️', 73: '🌨️', 75: '❄️',
-  77: '❄️', 80: '🌦️', 81: '🌧️', 82: '🌧️',
-  85: '🌨️', 86: '🌨️',
-  95: '⛈️', 96: '⛈️', 99: '⛈️'
+// ── weather icons: inline SVG so they look the same on every device (emoji differ per platform) ──
+// Colours come from CSS (--wx-sun / --wx-cloud / --wx-rain), so light and dark both work.
+const WX_PARTS = {
+  sun: '<g class="wx-sun"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></g>',
+  sunPeek: '<g class="wx-sun"><path d="M12 2v2M4.93 4.93l1.41 1.41M20 12h2M19.07 4.93l-1.41 1.41M15.95 12.65a4 4 0 0 0-5.93-4.13"/></g>',
+  cloudLow: '<g class="wx-cloud"><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"/></g>',
+  cloud: '<g class="wx-cloud"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></g>',
+  cloudTop: '<g class="wx-cloud"><path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.24"/></g>',
+  fog: '<g class="wx-cloud"><path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.24M16 17H7M17 21H9"/></g>',
+  drizzle: '<g class="wx-rain"><path d="M8 19v1M8 14v1M16 19v1M16 14v1M12 21v1M12 16v1"/></g>',
+  rain: '<g class="wx-rain"><path d="M16 14v6M8 14v6M12 16v6"/></g>',
+  snow: '<g class="wx-rain"><path d="M8 15h.01M8 19h.01M12 17h.01M12 21h.01M16 15h.01M16 19h.01"/></g>',
+  bolt: '<g class="wx-sun"><path d="m13 12-3 5h4l-3 5"/></g>',
+  showerCloud: '<g class="wx-cloud"><path d="M3 20a5 5 0 1 1 8.9-4H13a3 3 0 0 1 2 5.24"/></g>',
+  showerRain: '<g class="wx-rain"><path d="M11 20v2M7 19v2"/></g>'
 }
-function weatherIcon(code) { return WEATHER_ICON[code] || '🌡️' }
+function wxKind(code) {
+  if (code === 0) return 'sun'
+  if (code <= 2) return 'partly'
+  if (code === 3) return 'cloud'
+  if (code <= 48) return 'fog'
+  if (code <= 57) return 'drizzle'
+  if (code <= 67) return 'rain'
+  if (code <= 77) return 'snow'
+  if (code <= 82) return 'showers'
+  if (code <= 86) return 'snow'
+  return 'thunder'
+}
+const WX_ICON = {
+  sun: WX_PARTS.sun,
+  partly: WX_PARTS.sunPeek + WX_PARTS.cloudLow,
+  cloud: WX_PARTS.cloud,
+  fog: WX_PARTS.fog,
+  drizzle: WX_PARTS.cloudTop + WX_PARTS.drizzle,
+  rain: WX_PARTS.cloudTop + WX_PARTS.rain,
+  snow: WX_PARTS.cloudTop + WX_PARTS.snow,
+  showers: WX_PARTS.sunPeek + WX_PARTS.showerCloud + WX_PARTS.showerRain,
+  thunder: WX_PARTS.cloudTop + WX_PARTS.bolt
+}
+function svgIcon(inner, label) {
+  return `<svg class="wx-ico" viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="${label}">${inner}</svg>`
+}
+function weatherIcon(code) { return svgIcon(WX_ICON[wxKind(code)], weatherDesc(code)) }
+function sunHoursIcon() { return svgIcon(WX_PARTS.sun, 'zonuren') }
 
 const weatherCache = { data: null, fetched: 0, weekStart: '' }
 let locationCoords = { lat: 52.09, lon: 5.12, name: 'Utrecht' }
@@ -193,7 +224,7 @@ async function fetchWeather(days, key = 'wp-weather') {
 function weatherHtml(dateStr, weather) {
   if (!weather || !weather[dateStr]) return ''
   const w = weather[dateStr]
-  return `<div class="weather-row">${weatherIcon(w.code)} ${w.temp}° ${w.rainPct}% ${w.rain}mm ☀${w.sun}u</div>`
+  return `<div class="weather-row">${weatherIcon(w.code)} ${w.temp}° ${w.rainPct}% ${w.rain}mm ${sunHoursIcon()}${w.sun}u</div>`
 }
 
 const WEATHER_DESC = [[0, 'Zonnig'], [2, 'Half bewolkt'], [3, 'Bewolkt'], [48, 'Mistig'], [55, 'Motregen'], [57, 'Motregen'], [63, 'Regen'], [67, 'IJzel'], [75, 'Sneeuw'], [77, 'Korrelsneeuw'], [82, 'Buien'], [86, 'Sneeuwbuien'], [99, 'Onweer']]
@@ -202,7 +233,7 @@ function weatherDesc(code) { for (const [max, label] of WEATHER_DESC) if (code <
 function weatherChipHtml(dateStr, weather) {
   if (!weather || !weather[dateStr]) return ''
   const w = weather[dateStr]
-  return `<span class="weather-chip">${weatherIcon(w.code)} ${w.temp}° ${w.rainPct}% ${w.rain}mm ☀${w.sun}u</span>`
+  return `<span class="weather-chip">${weatherIcon(w.code)} ${w.temp}° ${w.rainPct}% ${w.rain}mm ${sunHoursIcon()}${w.sun}u</span>`
 }
 
 // ── date helpers ──
@@ -668,7 +699,7 @@ function nextDays(n) {
   return Array.from({ length: n }, (_, i) => { const d = new Date(start); d.setDate(start.getDate() + i); return d })
 }
 function weatherCardHtml(w) {
-  return `<div class="today-weather-icon" aria-hidden="true">${weatherIcon(w.code)}</div><div><div class="today-weather-main">${w.temp}° <span>${esc(weatherDesc(w.code).toLowerCase())}</span></div><div class="today-weather-sub">${w.rainPct}% kans op regen · ${w.rain} mm · ☀ ${w.sun} uur zon</div></div>`
+  return `<div class="today-weather-icon" aria-hidden="true">${weatherIcon(w.code)}</div><div><div class="today-weather-main">${w.temp}° <span>${esc(weatherDesc(w.code).toLowerCase())}</span></div><div class="today-weather-sub">${w.rainPct}% kans op regen · ${w.rain} mm · ${sunHoursIcon()} ${w.sun} uur zon</div></div>`
 }
 function greeting(h) { return h < 6 ? 'Goedenacht' : h < 12 ? 'Goedemorgen' : h < 18 ? 'Goedemiddag' : 'Goedenavond' }
 function renderToday() {
@@ -703,7 +734,7 @@ function renderToday() {
     const dStr = ymd(d), its = itemsOn(d)
     const people = [...new Set(its.flatMap(e => whoList(e)).filter(n => FAMILY.includes(n)))].slice(0, 4)
     const dw = todayWeather && todayWeather[dStr]
-    return `<button type="button" class="strip-day${dStr === todayStr ? ' is-today' : ''}" data-date="${dStr}" aria-label="${DAY_LABELS[dayNameOf(d)]}: ${its.length} items"><span>${DAY_ABBR[dayNameOf(d)].toLowerCase()}</span><span class="strip-count">${its.length}</span><span>${dw ? weatherIcon(dw.code) + ' ' + dw.temp + '°' : '&nbsp;'}</span><span class="strip-dots">${people.map(n => `<span class="${personClass(n)}"></span>`).join('')}</span></button>`
+    return `<button type="button" class="strip-day${dStr === todayStr ? ' is-today' : ''}" data-date="${dStr}" aria-label="${DAY_LABELS[dayNameOf(d)]}: ${its.length} items"><span>${DAY_ABBR[dayNameOf(d)].toLowerCase()}</span><span class="strip-count">${its.length}</span><span class="strip-wx">${dw ? weatherIcon(dw.code) + dw.temp + '°' : '&nbsp;'}</span><span class="strip-dots">${people.map(n => `<span class="${personClass(n)}"></span>`).join('')}</span></button>`
   }).join('')
 
   wireBlocks(view)
