@@ -69,7 +69,7 @@
 
 /* ── base ── */
 * { box-sizing: border-box; }
-body { background: var(--bg); color: var(--ink); font-family: 'Fredoka', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: env(safe-area-inset-top) max(14px, env(safe-area-inset-right)) 24px max(14px, env(safe-area-inset-left)); font-size: 15px; line-height: 1.45; margin: 0; -webkit-tap-highlight-color: transparent; }
+body { background: var(--bg); color: var(--ink); font-family: 'Fredoka', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 0 max(14px, env(safe-area-inset-right)) 24px max(14px, env(safe-area-inset-left)); font-size: 15px; line-height: 1.45; margin: 0; -webkit-tap-highlight-color: transparent; }
 h1, h2, h3, h4 { font-weight: 600; text-wrap: balance; margin: 0; }
 .mono { font-variant-numeric: tabular-nums; }
 a { color: var(--accent-ink); }
@@ -82,7 +82,7 @@ svg { flex: none; }
 .app { max-width: 1120px; margin: 0 auto; }
 
 /* ── header + tabs ── */
-.topbar { padding: 12px 0 0; margin-bottom: 4px; }
+.topbar { position: sticky; top: 0; z-index: 35; background: var(--bg); padding: calc(12px + env(safe-area-inset-top)) 14px 8px; margin: 0 -14px 0; }
 .topbar-inner { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .brand { display: flex; gap: 8px; align-items: center; }
 .brand-mark { flex: none; width: 28px; height: 28px; border-radius: 10px; background: var(--fab); color: var(--fab-ink); display: grid; place-items: center; }
@@ -125,6 +125,10 @@ svg { flex: none; }
 .today-greet { font-size: 1.6rem; line-height: 1.15; }
 .today-weather { background: var(--weather-bg); color: var(--weather-ink); border-radius: 22px; padding: 12px 16px; display: flex; align-items: center; gap: 14px; }
 .today-weather-icon { font-size: 2.2rem; line-height: 1; }
+.today-weather.sm { padding: 8px 14px; border-radius: 18px; gap: 12px; }
+.today-weather.sm .today-weather-icon { font-size: 1.6rem; }
+.today-weather.sm .today-weather-main { font-size: 1.15rem; }
+.today-weather.sm .today-weather-sub { font-size: 0.78rem; }
 .today-weather-main { font-size: 1.5rem; font-weight: 600; line-height: 1.1; }
 .today-weather-main span { font-size: 0.95rem; font-weight: 400; }
 .today-weather-sub { font-size: 0.82rem; }
@@ -133,7 +137,7 @@ svg { flex: none; }
 .today-minis > .blk { flex: 1 1 40%; }
 .today-empty { background: var(--surface-2); border-radius: var(--radius); padding: 14px 16px; color: var(--ink-soft); }
 .today-sub { display: flex; justify-content: space-between; align-items: baseline; margin-top: 6px; font-weight: 500; }
-.today-sub span:last-child { font-weight: 400; font-size: 0.82rem; color: var(--ink-soft); }
+.today-sub span:not(:first-child) { font-weight: 400; font-size: 0.82rem; color: var(--ink-soft); }
 .today-strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 6px; }
 .strip-day { border: none; background: transparent; border-radius: 14px; padding: 6px 0; text-align: center; font-size: 0.78rem; color: var(--ink-soft); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1px; }
 .strip-day:hover { background: var(--surface-2); }
@@ -162,6 +166,9 @@ svg { flex: none; }
 .blk.is-deleting { transform: translateX(-110%) !important; opacity: 0; transition: transform .2s ease, opacity .2s ease; }
 
 /* ── week toolbar ── */
+/* week header stays visible while scrolling: toolbar + filter chips (mobile) / table header (desktop) */
+.week-sticky { position: sticky; top: var(--topbar-h, 0px); z-index: 30; background: var(--surface); margin: -14px -16px 0; padding: 14px 16px 8px; border-radius: var(--radius) var(--radius) 0 0; }
+.week-sticky.is-stuck { box-shadow: 0 8px 12px -10px rgba(0,0,0,0.18); }
 .week-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .week-nav { display: flex; align-items: center; gap: 6px; }
 .week-title { text-align: center; min-width: 130px; border-radius: 14px; padding: 4px 10px; position: relative; cursor: pointer; }
@@ -393,7 +400,7 @@ details[open] > .archive-toggle::before { transform: rotate(90deg); }
 .modal-msg { font-size: 0.94rem; color: var(--ink-soft); margin: 0 0 14px; }
 .modal-actions { display: flex; flex-direction: column; gap: 8px; }
 .modal-actions .btn { width: 100%; justify-content: center; }
-.offline-banner { position: sticky; top: env(safe-area-inset-top); z-index: 30; background: var(--warn-soft); color: var(--ink); font-size: 0.86rem; padding: 7px 16px; text-align: center; margin: 0 -14px; }
+.offline-banner { position: relative; padding-top: calc(7px + env(safe-area-inset-top)); z-index: 30; background: var(--warn-soft); color: var(--ink); font-size: 0.86rem; padding: 7px 16px; text-align: center; margin: 0 -14px; }
 .status-legend { display: flex; gap: 14px; align-items: center; padding: 8px 4px 0; font-size: 0.8rem; color: var(--ink-soft); }
 .legend-item { display: flex; align-items: center; gap: 5px; }
 .legend-dash { width: 18px; height: 10px; border-radius: 4px; outline: 1.5px dashed var(--warn-line); outline-offset: -1.5px; }
@@ -432,15 +439,24 @@ details[open] > .archive-toggle::before { transform: rotate(90deg); }
   .tab-label-short { display: inline; }
   .tab-badge { position: absolute; top: 0; right: 4px; }
   .view > .panel { border: none; padding: 0; background: transparent; }
+  .week-sticky { background: var(--bg); margin: 0 -14px; padding: 4px 14px 8px; border-radius: 0; }
   .fab { display: grid; place-items: center; position: fixed; right: max(18px, calc(env(safe-area-inset-right) + 12px)); bottom: calc(76px + max(10px, env(safe-area-inset-bottom))); z-index: 45; width: 56px; height: 56px; border-radius: 20px; border: none; background: var(--fab); color: var(--fab-ink); box-shadow: var(--shadow); cursor: pointer; }
   .fab svg { width: 26px; height: 26px; transition: transform .15s; }
   .fab.is-open svg { transform: rotate(45deg); }
   .week-actions { display: none; }
   .status-legend { display: none; }
+  /* 16px+ text in fields stops iOS Safari from zooming in when you tap them */
+  input, select, textarea, #quick-text, .field input, .field select, .field textarea, .time-picker select { font-size: 16px; }
   .swipe-hint { display: block; }
   .push-prompt { bottom: calc(66px + max(10px, env(safe-area-inset-bottom))); }
   .toast, .snackbar { bottom: calc(146px + max(10px, env(safe-area-inset-bottom))); }
 }
 @media (min-width: 761px) {
   .fab, .fab-menu { display: none !important; }
+  /* let the table header stick to the page: no inner scroll container on wide screens */
+  .week-table-wrap { overflow: visible; }
+  .week-table thead th { position: sticky; top: calc(var(--topbar-h, 0px) + var(--weekbar-h, 0px)); z-index: 3; }
+  .week-table thead th.day-th { z-index: 4; }
+  .week-table thead th:first-child { border-top-left-radius: var(--radius); }
+  .week-table thead th:last-child { border-top-right-radius: var(--radius); }
 }

@@ -45,13 +45,16 @@
           </div>
           <div class="today-weather" id="todayWeather" hidden></div>
           <div class="today-list" id="todayList"></div>
-          <div class="today-sub"><span id="tomorrowLabel">Morgen</span><span id="tomorrowWeather"></span></div>
+          <div class="today-sub"><span id="tomorrowLabel">Morgen</span></div>
+          <div class="today-weather sm" id="tomorrowWeather" hidden></div>
           <div class="today-tomorrow" id="tomorrowList"></div>
-          <div class="today-strip" id="todayStrip" aria-label="Deze week"></div>
+          <div class="today-sub"><span>Komende 7 dagen</span></div>
+          <div class="today-strip" id="todayStrip" aria-label="Komende 7 dagen"></div>
         </section>
 
         <section class="view" id="view-week" hidden>
           <div class="panel">
+            <div class="week-sticky" id="weekSticky">
             <div class="week-toolbar">
               <div class="week-nav">
                 <button class="icon-btn" id="weekPrev" aria-label="Vorige week"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"></path></svg></button>
@@ -72,6 +75,7 @@
             </div>
             <div class="week-filter-note" id="weekFilterNote" hidden></div>
             <div class="who-filter" id="whoFilter" role="group" aria-label="Filter op persoon"></div>
+            </div>
 
             <div class="add-panel" id="itemPanel" hidden>
               <div id="quickAddBox">

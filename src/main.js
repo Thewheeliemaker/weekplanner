@@ -65,7 +65,13 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => {}) })
 }
 
-function focusSoon(id) { requestAnimationFrame(() => { const el = $(id); if (el) el.focus() }) }
+// iOS only opens the keyboard when focus() runs synchronously inside the tap, so focus right away
+// (the element must already be visible), and retry on the next frame as a fallback for other browsers.
+function focusSoon(id) {
+  const el = $(id); if (!el) return
+  el.focus()
+  requestAnimationFrame(() => { if (document.activeElement !== el) el.focus() })
+}
 
 // ── snackbar (delete with undo) ──
 const snackEl = $('snackbar'), snackMsgEl = $('snackbar-msg'), snackUndoBtn = $('snackbar-undo')
@@ -380,7 +386,7 @@ function isBirthday(e) { return e.type === 'jaarlijks' && e.birthYear }
 // Dutch holidays are calculated, not stored. Skipped when a stored entry with the same title+date exists.
 function holidayEntries() {
   const days = getWeekDays(state.weekOffset)
-  const years = [...new Set([days[0].getFullYear(), days[6].getFullYear(), new Date().getFullYear()])]
+  const years = [...new Set([days[0].getFullYear(), days[6].getFullYear(), new Date().getFullYear(), new Date(Date.now() + 7 * 86400000).getFullYear()])]
   const out = []
   for (const y of years) for (const h of dutchHolidays(y)) {
     if (state.entries.some(e => e.date === h.date && e.title === h.title)) continue
@@ -669,11 +675,16 @@ let todayWeather = null, todayWeatherAt = 0
 async function loadTodayWeather() {
   if (!pref('showWeather', true)) { todayWeather = null; renderToday(); return }
   if (todayWeather && Date.now() - todayWeatherAt < 3 * 3600000) return
-  const days = getWeekDays(0)
-  const tomorrow = new Date(); tomorrow.setHours(0, 0, 0, 0); tomorrow.setDate(tomorrow.getDate() + 1)
-  if (tomorrow > days[6]) days.push(tomorrow)
-  const w = await fetchWeather(days, 'wp-weather-today')
+  const w = await fetchWeather(nextDays(7), 'wp-weather-today')
   if (w) { todayWeather = w; todayWeatherAt = Date.now(); renderToday() }
+}
+// Today plus the following days (rolling, not Monday–Sunday)
+function nextDays(n) {
+  const start = new Date(); start.setHours(0, 0, 0, 0)
+  return Array.from({ length: n }, (_, i) => { const d = new Date(start); d.setDate(start.getDate() + i); return d })
+}
+function weatherCardHtml(w) {
+  return `<div class="today-weather-icon" aria-hidden="true">${weatherIcon(w.code)}</div><div><div class="today-weather-main">${w.temp}° <span>${esc(weatherDesc(w.code).toLowerCase())}</span></div><div class="today-weather-sub">${w.rainPct}% kans op regen · ${w.rain} mm · ☀ ${w.sun} uur zon</div></div>`
 }
 function greeting(h) { return h < 6 ? 'Goedenacht' : h < 12 ? 'Goedemorgen' : h < 18 ? 'Goedemiddag' : 'Goedenavond' }
 function renderToday() {
@@ -686,7 +697,7 @@ function renderToday() {
   const wEl = $('todayWeather'), w = todayWeather && todayWeather[todayStr]
   if (w) {
     wEl.hidden = false
-    wEl.innerHTML = `<div class="today-weather-icon" aria-hidden="true">${weatherIcon(w.code)}</div><div><div class="today-weather-main">${w.temp}° <span>${esc(weatherDesc(w.code).toLowerCase())}</span></div><div class="today-weather-sub">${w.rainPct}% kans op regen · ${w.rain} mm · ☀ ${w.sun} uur zon</div></div>`
+    wEl.innerHTML = weatherCardHtml(w)
   } else wEl.hidden = true
 
   const items = itemsOn(now)
@@ -698,11 +709,13 @@ function renderToday() {
 
   const tStr = ymd(tomorrow), tw = todayWeather && todayWeather[tStr]
   $('tomorrowLabel').textContent = 'Morgen · ' + tomorrow.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric' })
-  $('tomorrowWeather').textContent = tw ? `${weatherIcon(tw.code)} ${tw.temp}° · ${tw.rainPct}%` : ''
+  const twEl = $('tomorrowWeather')
+  twEl.hidden = !tw
+  if (tw) twEl.innerHTML = weatherCardHtml(tw)
   const tItems = itemsOn(tomorrow)
   $('tomorrowList').innerHTML = tItems.length ? tItems.map(e => blockHtml(e, tStr, 'sm')).join('') : '<div class="agenda-empty">Niets gepland</div>'
 
-  $('todayStrip').innerHTML = getWeekDays(0).map(d => {
+  $('todayStrip').innerHTML = nextDays(7).map(d => {
     const dStr = ymd(d), its = itemsOn(d)
     const people = [...new Set(its.flatMap(e => whoList(e)).filter(n => FAMILY.includes(n)))].slice(0, 4)
     const dw = todayWeather && todayWeather[dStr]
@@ -713,7 +726,7 @@ function renderToday() {
   view.querySelectorAll('.strip-day').forEach(b => b.addEventListener('click', () => goToDay(b.dataset.date)))
 }
 function goToDay(dStr) {
-  state.weekOffset = 0
+  state.weekOffset = Math.round((mondayOf(new Date(dStr + 'T12:00:00')) - mondayOf(new Date())) / (7 * 86400000))
   showView('week')
   renderWeek()
   requestAnimationFrame(() => {
@@ -775,6 +788,19 @@ document.addEventListener('keydown', (ev) => {
   }, { passive: true })
 })()
 
+// ── sticky header heights (topbar + week bar) as CSS variables ──
+;(function () {
+  const root = document.documentElement, topbar = document.querySelector('.topbar'), weekbar = $('weekSticky')
+  const update = () => {
+    root.style.setProperty('--topbar-h', topbar.offsetHeight + 'px')
+    root.style.setProperty('--weekbar-h', (weekbar && weekbar.offsetParent ? weekbar.offsetHeight : 0) + 'px')
+  }
+  if ('ResizeObserver' in window) { const ro = new ResizeObserver(update); ro.observe(topbar); if (weekbar) ro.observe(weekbar) }
+  window.addEventListener('resize', update)
+  window.addEventListener('scroll', () => { if (weekbar) weekbar.classList.toggle('is-stuck', weekbar.getBoundingClientRect().top <= topbar.offsetHeight + 1 && window.scrollY > 0) }, { passive: true })
+  update()
+})()
+
 // ── views / tabs ──
 const VIEWS = ['today', 'week', 'groceries', 'board', 'profile']
 const mobileQuery = window.matchMedia('(max-width: 760px)')
@@ -807,7 +833,7 @@ fabMenu.addEventListener('click', ev => {
   const b = ev.target.closest('[data-fab]'); if (!b) return
   const action = b.dataset.fab
   closeFabMenu()
-  if (action === 'item') { showView('week'); hideAllPanels(); state.addForDate = null; state.editId = null; resetItemPanel(); itemPanel.hidden = false; itemPanel.scrollIntoView({ block: 'start' }) }
+  if (action === 'item') { showView('week'); hideAllPanels(); state.addForDate = null; state.editId = null; itemPanel.hidden = false; resetItemPanel(); itemPanel.scrollIntoView({ block: 'start' }) }
   else if (action === 'dinner') { showView('week'); if (dinnerPanel.hidden) $('btnNewDinner').click(); dinnerPanel.scrollIntoView({ block: 'start' }) }
   else if (action === 'grocery') { showView('groceries'); focusSoon('g-input') }
   else if (action === 'scan') { showView('board'); if (photoPanel.hidden) $('btnPhoto').click() }
@@ -831,13 +857,13 @@ const addDropdownMenu = $('addDropdownMenu')
 function hideAllPanels() { itemPanel.hidden = true; groceryPanel.hidden = true; dinnerPanel.hidden = true; closeInlineDetail() }
 $('btnAddToggle').addEventListener('click', (ev) => { ev.stopPropagation(); addDropdownMenu.hidden = !addDropdownMenu.hidden })
 document.addEventListener('click', () => { if (addDropdownMenu && !addDropdownMenu.hidden) addDropdownMenu.hidden = true })
-$('btnNewItem').addEventListener('click', () => { const was = itemPanel.hidden; hideAllPanels(); state.addForDate = null; state.editId = null; if (was) { resetItemPanel(); itemPanel.hidden = false } })
+$('btnNewItem').addEventListener('click', () => { const was = itemPanel.hidden; hideAllPanels(); state.addForDate = null; state.editId = null; if (was) { itemPanel.hidden = false; resetItemPanel() } })
 
 function openItemForDay(dateStr, dayName, who) {
   hideAllPanels()
   state.addForDate = { date: dateStr, dayName, who: who || null }
-  resetItemPanel()
   itemPanel.hidden = false
+  resetItemPanel()
   itemPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   const el = $('quick-text')
   el.placeholder = who ? 'Item voor ' + who + ' op ' + DAY_LABELS[dayName] + '…' : 'Item voor ' + DAY_LABELS[dayName] + '…'
