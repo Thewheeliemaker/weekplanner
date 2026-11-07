@@ -122,36 +122,32 @@ export default async function handler(req, res) {
 
   const today = todayInAmsterdam()
   const forceTest = req.method === 'POST' && req.body?.test === true
-  const nowAmsterdam = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Amsterdam', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date())
 
-  const [entriesRes, subsRes, locationRes, optoutRes, timesRes, lastSentRes] = await Promise.all([
+  if (!forceTest) {
+    const [lastSentRes, timeRes] = await Promise.all([
+      supabase.from('settings').select('value').eq('id', 'digest_last_sent').single(),
+      supabase.from('settings').select('value').eq('id', 'digest_time').single()
+    ])
+    const lastSent = typeof lastSentRes.data?.value === 'string' ? lastSentRes.data.value : null
+    if (lastSent === today) return res.status(200).json({ ok: true, skipped: true, reason: 'Al verstuurd vandaag' })
+
+    const digestTime = timeRes.data?.value || '07:00'
+    const nowAmsterdam = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Amsterdam', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date())
+    if (nowAmsterdam < digestTime) return res.status(200).json({ ok: true, skipped: true, reason: `Te vroeg — digest staat op ${digestTime}, nu is het ${nowAmsterdam}` })
+  }
+
+  const [entriesRes, subsRes, locationRes, optoutRes] = await Promise.all([
     supabase.from('entries').select('*'),
     supabase.from('push_subscriptions').select('*'),
     supabase.from('settings').select('value').eq('id', 'location').single(),
-    supabase.from('settings').select('value').eq('id', 'digest_optout').single(),
-    supabase.from('settings').select('value').eq('id', 'digest_times').single(),
-    supabase.from('settings').select('value').eq('id', 'digest_last_sent').single()
+    supabase.from('settings').select('value').eq('id', 'digest_optout').single()
   ])
 
   if (entriesRes.error) return res.status(500).json({ error: 'DB error' })
 
   const optout = Array.isArray(optoutRes.data?.value) ? optoutRes.data.value : []
-  const digestTimes = (timesRes.data?.value && typeof timesRes.data.value === 'object') ? timesRes.data.value : {}
-  const rawLastSent = lastSentRes.data?.value
-  const lastSentMap = (rawLastSent && typeof rawLastSent === 'object' && !Array.isArray(rawLastSent))
-    ? rawLastSent
-    : {}
-
-  const allSubs = (subsRes.data || []).filter(s => !optout.includes(s.user_name))
-  const subsToSend = forceTest
-    ? allSubs
-    : allSubs.filter(s => {
-        if (lastSentMap[s.user_name] === today) return false
-        const userTime = digestTimes[s.user_name] || '07:00'
-        return nowAmsterdam >= userTime
-      })
-
-  if (subsToSend.length === 0) return res.status(200).json({ ok: true, skipped: true, reason: 'Niemand om naar te sturen op dit moment' })
+  const subs = (subsRes.data || []).filter(s => !optout.includes(s.user_name))
+  if (subs.length === 0) return res.status(200).json({ ok: true, skipped: true, reason: 'Geen abonnees' })
 
   const loc = locationRes.data?.value || { lat: 52.09, lon: 5.12 }
   const weather = await fetchWeather(loc.lat, loc.lon)
@@ -192,15 +188,13 @@ export default async function handler(req, res) {
   const GREETINGS = { Merel: 'Goedemorgen schoonheid', Mare: 'Goedemorgen scheetje', Siem: 'Goedemorgen kakkie' }
 
   let sent = 0
-  const sentUsers = []
-  for (const sub of subsToSend) {
+  for (const sub of subs) {
     const greeting = GREETINGS[sub.user_name] || 'Goedemorgen'
     const personalTitle = `${greeting} ${weatherShort}`
     const personalPayload = JSON.stringify({ title: personalTitle, body, tag: 'digest' })
     try {
-      await webpush.sendNotification(JSON.parse(sub.subscription), personalPayload)
+      await webpush.sendNotification(JSON.parse(sub.subscription), personalPayload, { TTL: 21600 })
       sent++
-      if (!sentUsers.includes(sub.user_name)) sentUsers.push(sub.user_name)
     } catch (err) {
       if (err.statusCode === 410 || err.statusCode === 404) {
         await supabase.from('push_subscriptions').delete().eq('id', sub.id)
@@ -209,9 +203,7 @@ export default async function handler(req, res) {
   }
 
   if (sent > 0 && !forceTest) {
-    const updated = { ...lastSentMap }
-    for (const u of sentUsers) updated[u] = today
-    await supabase.from('settings').upsert({ id: 'digest_last_sent', value: updated }, { onConflict: 'id' })
+    await supabase.from('settings').upsert({ id: 'digest_last_sent', value: today }, { onConflict: 'id' })
   }
 
   // Weekly backup on Sundays
@@ -226,5 +218,5 @@ export default async function handler(req, res) {
     } catch {}
   }
 
-  res.status(200).json({ ok: true, sent, sentUsers, items: lines.length })
+  res.status(200).json({ ok: true, sent, items: lines.length })
 }
