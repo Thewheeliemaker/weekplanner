@@ -49,7 +49,7 @@ async function sendPushNotifications(supabase, entry, excludeUser) {
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
 
-  const { password, action, table, data, id, ids, currentUser } = req.body || {}
+  const { password, action, table, data, id, ids, currentUser, silent } = req.body || {}
 
   if (password !== process.env.APP_PASSWORD) return res.status(401).json({ error: 'Unauthorized' })
   if (!ALLOWED_TABLES.includes(table)) return res.status(400).json({ error: 'Invalid table' })
@@ -65,6 +65,9 @@ export default async function handler(req, res) {
       if (!data) return res.status(400).json({ error: 'Missing data' })
       const rows = Array.isArray(data) ? data : [data]
       result = await supabase.from(table).insert(rows).select()
+    } else if (action === 'upsert' && table === 'settings') {
+      if (!data || !data.id) return res.status(400).json({ error: 'Missing data.id' })
+      result = await supabase.from(table).upsert({ id: data.id, value: data.value }, { onConflict: 'id' }).select()
     } else if (action === 'update' && id) {
       if (!data) return res.status(400).json({ error: 'Missing data' })
       result = await supabase.from(table).update(data).eq('id', id).select()
@@ -81,10 +84,16 @@ export default async function handler(req, res) {
 
     if (result.error) return res.status(400).json({ error: result.error.message })
 
-    if (action === 'insert' && table === 'entries' && result.data) {
+    if (action === 'insert' && table === 'entries' && result.data && !silent) {
       const entries = Array.isArray(result.data) ? result.data : [result.data]
-      for (const entry of entries) {
-        try { await sendPushNotifications(supabase, entry, currentUser) } catch {}
+      if (entries.length === 1) {
+        try { await sendPushNotifications(supabase, entries[0], currentUser) } catch {}
+      } else if (entries.length > 1) {
+        // Bulk insert (e.g. roster scan): one summary notification instead of one per item
+        const who = [...new Set(entries.map(e => e.who).filter(Boolean))].join(', ')
+        const summary = { title: entries.length + ' nieuwe items' }
+        if (who && who !== 'Algemeen') summary.who = who
+        try { await sendPushNotifications(supabase, summary, currentUser) } catch {}
       }
     }
 

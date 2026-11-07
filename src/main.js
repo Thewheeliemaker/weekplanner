@@ -20,12 +20,12 @@ function savePref(key, val) {
 }
 function pref(key, def) { const v = loadPrefs()[key]; return v === undefined ? def : v }
 
-async function dbWrite(action, table, { data, id, ids } = {}) {
+async function dbWrite(action, table, { data, id, ids, silent } = {}) {
   const password = localStorage.getItem('wp-auth')
   const resp = await fetch('/api/data', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password, action, table, data, id, ids, currentUser: state.currentUser })
+    body: JSON.stringify({ password, action, table, data, id, ids, silent, currentUser: state.currentUser })
   })
   const result = await resp.json()
   if (!resp.ok) return { error: { message: result.error } }
@@ -56,20 +56,20 @@ async function deleteOneWithUndo(table, id, data, label) {
   const { error } = await dbWrite('delete', table, { id })
   if (error) { toast('Verwijderen mislukt.'); return }
   undoSnack(capitalize(label) + ' verwijderd.', async () => {
-    const clone = { ...data }; delete clone.id
-    const { error: e2 } = await dbWrite('insert', table, { data: clone })
+    const clone = { ...data, id }
+    const { error: e2 } = await dbWrite('insert', table, { data: clone, silent: true })
     if (e2) toast('Herstellen mislukt.')
   })
 }
 
+// docs: rows in DB shape (snake_case), including id
 async function deleteManyWithUndo(table, docs, label) {
   if (docs.length === 0) { toast('Niets te verwijderen.'); return }
   const ids = docs.map(d => d.id)
   const { error } = await dbWrite('delete_many', table, { ids })
   if (error) { toast('Verwijderen mislukt.'); return }
   undoSnack(docs.length + ' item(en) verwijderd (' + label + ').', async () => {
-    const rows = docs.map(d => { const c = { ...d }; delete c.id; return c })
-    const { error: e2 } = await dbWrite('insert', table, { data: rows })
+    const { error: e2 } = await dbWrite('insert', table, { data: docs, silent: true })
     if (e2) toast('Herstellen mislukt.')
   })
 }
@@ -398,11 +398,11 @@ async function handleEntryDeleteClick(id, dStr) {
       })
       loadEntries()
     } else if (choice === 'series') {
-      await deleteOneWithUndo('entries', id, entryToRow(entry), 'item')
+      await deleteOneWithUndo('entries', id, { ...entryToRow(entry), created_at: entry.createdAt }, 'item')
       loadEntries()
     }
   } else {
-    await deleteOneWithUndo('entries', id, entryToRow(entry), 'item')
+    await deleteOneWithUndo('entries', id, { ...entryToRow(entry), created_at: entry.createdAt }, 'item')
     loadEntries()
   }
 }
@@ -834,6 +834,7 @@ $('itemForm').addEventListener('submit', async (ev) => {
 })
 
 // ── groceries ──
+function groceryToRow(g) { return { id: g.id, naam: g.naam, afgevinkt: !!g.afgevinkt, created_at: g.createdAt } }
 async function addGroceryItem(naam) {
   const { error } = await dbWrite('insert', 'boodschappen', { data: { naam, afgevinkt: false } })
   if (error) { toast('Toevoegen mislukt.'); return }
@@ -844,8 +845,8 @@ $('btnNewGrocery').addEventListener('click', () => { const was = groceryPanel.hi
 $('gq-cancel').addEventListener('click', () => groceryPanel.hidden = true)
 $('groceryQuickForm').addEventListener('submit', ev => { ev.preventDefault(); const v = $('gq-input').value.trim(); if (!v) return; addGroceryItem(v).then(() => { $('gq-input').value = ''; groceryPanel.hidden = true }) })
 $('groceryForm').addEventListener('submit', ev => { ev.preventDefault(); const v = $('g-input').value.trim(); if (!v) return; addGroceryItem(v).then(() => { $('g-input').value = '' }) })
-$('clearGroceries').addEventListener('click', () => { if (state.groceries.length === 0) { toast('Lijst is al leeg.'); return }; deleteManyWithUndo('boodschappen', state.groceries, 'boodschappenlijst gewist').then(loadGroceries) })
-$('clearCheckedGroceries').addEventListener('click', () => { const checked = state.groceries.filter(g => g.afgevinkt); if (checked.length === 0) { toast('Nog niets afgevinkt.'); return }; deleteManyWithUndo('boodschappen', checked, 'afgevinkte items gewist').then(loadGroceries) })
+$('clearGroceries').addEventListener('click', () => { if (state.groceries.length === 0) { toast('Lijst is al leeg.'); return }; deleteManyWithUndo('boodschappen', state.groceries.map(groceryToRow), 'boodschappenlijst gewist').then(loadGroceries) })
+$('clearCheckedGroceries').addEventListener('click', () => { const checked = state.groceries.filter(g => g.afgevinkt); if (checked.length === 0) { toast('Nog niets afgevinkt.'); return }; deleteManyWithUndo('boodschappen', checked.map(groceryToRow), 'afgevinkte items gewist').then(loadGroceries) })
 
 // ── dinner quick add ──
 $('btnNewDinner').addEventListener('click', () => { const was = dinnerPanel.hidden; hideAllPanels(); dinnerPanel.hidden = !was; if (!dinnerPanel.hidden) { if (!$('d-date').value) $('d-date').value = todayInfo().iso; focusSoon('d-title') } })
@@ -935,7 +936,7 @@ $('photo-scan').addEventListener('click', async () => {
       if (checks.length === 0) { toast('Selecteer minstens één dienst.'); return }
       const selectedWho = $('scan-who').value
       const addBtn = $('scan-add-all'); addBtn.disabled = true; addBtn.textContent = 'Bezig…'
-      let added = 0, lastErr = ''
+      const rows = []
       for (const cb of checks) {
         const idx = cb.dataset.idx
         const e = entries[parseInt(idx)]
@@ -945,11 +946,14 @@ $('photo-scan').addEventListener('click', async () => {
         const date = dateInput ? dateInput.value : (e.date || null)
         const time = timeInput ? timeInput.value : (e.time || '')
         const endTime = endInput ? endInput.value : (e.end_time || '')
-        const row = { title: selectedWho + ' werken', who: selectedWho, type: 'eenmalig', weekday: null, date: date || null, end_date: null, time: time || null, note: endTime ? 'Tot ' + endTime : '', category: null, skip_dates: [], source: 'foto', op_fysiek_bord: false, photo_id: null, reminder_minutes: null, birth_year: null }
-        const { error } = await dbWrite('insert', 'entries', { data: row })
-        if (error) lastErr = error.message || JSON.stringify(error)
-        else added++
+        const isFree = /^vrij\b/i.test((e.title || '').trim())
+        const row = { title: selectedWho + (isFree ? ' vrij' : ' werken'), who: selectedWho, type: 'eenmalig', weekday: null, date: date || null, end_date: null, time: time || null, note: (!isFree && endTime) ? 'Tot ' + endTime : '', category: null, skip_dates: [], source: 'foto', op_fysiek_bord: false, photo_id: null, reminder_minutes: null, birth_year: null }
+        if (isFree) row.time = null
+        rows.push(row)
       }
+      const { data: inserted, error } = await dbWrite('insert', 'entries', { data: rows })
+      const added = error ? 0 : (inserted ? inserted.length : rows.length)
+      const lastErr = error ? (error.message || 'onbekende fout') : ''
       if (added > 0) { toast(added + ' dienst' + (added !== 1 ? 'en' : '') + ' toegevoegd.'); loadEntries() }
       if (lastErr) { toast('Fout: ' + lastErr); $('photo-status').textContent = 'Fout: ' + lastErr; addBtn.disabled = false; addBtn.textContent = 'Geselecteerde toevoegen'; return }
       photoPanel.hidden = true; $('photo-input').value = ''; $('photo-preview').hidden = true; $('photo-results').hidden = true; $('photo-scan').hidden = true
@@ -983,7 +987,7 @@ function renderGroceries() {
   }))
   ul.querySelectorAll('.g-del').forEach(btn => btn.addEventListener('click', async () => {
     const item = state.groceries.find(g => g.id === btn.dataset.id)
-    if (item) { await deleteOneWithUndo('boodschappen', item.id, { naam: item.naam, afgevinkt: item.afgevinkt }, 'boodschap'); loadGroceries() }
+    if (item) { await deleteOneWithUndo('boodschappen', item.id, groceryToRow(item), 'boodschap'); loadGroceries() }
   }))
 }
 
@@ -1007,7 +1011,7 @@ function renderFavManageList() {
   ).join('')
   ul.querySelectorAll('.fav-del').forEach(btn => btn.addEventListener('click', async () => {
     const fav = state.favorites.find(f => f.id === btn.dataset.id)
-    if (fav) { await deleteOneWithUndo('favorieten', fav.id, { naam: fav.naam }, 'favoriet'); loadFavorites() }
+    if (fav) { await deleteOneWithUndo('favorieten', fav.id, { naam: fav.naam, created_at: fav.createdAt }, 'favoriet'); loadFavorites() }
   }))
 }
 
@@ -1161,13 +1165,12 @@ async function loadDigestPref() {
   } catch {}
   prefDigest.checked = !digestOptout.includes(state.currentUser)
 }
-loadDigestPref()
 prefDigest.addEventListener('change', async () => {
   const user = state.currentUser
   if (!user) return
   if (prefDigest.checked) digestOptout = digestOptout.filter(u => u !== user)
   else if (!digestOptout.includes(user)) digestOptout.push(user)
-  await dbWrite('update', 'settings', { id: 'digest_optout', data: { value: digestOptout } })
+  await dbWrite('upsert', 'settings', { data: { id: 'digest_optout', value: digestOptout } })
   toast(prefDigest.checked ? 'Dagelijkse digest ingeschakeld' : 'Dagelijkse digest uitgeschakeld')
 })
 
@@ -1181,7 +1184,8 @@ async function loadDigestTime() {
 }
 loadDigestTime()
 prefDigestTime.addEventListener('change', async () => {
-  await dbWrite('update', 'settings', { id: 'digest_time', data: { value: prefDigestTime.value } })
+  const { error } = await dbWrite('upsert', 'settings', { data: { id: 'digest_time', value: prefDigestTime.value } })
+  if (error) { toast('Opslaan mislukt.'); return }
   toast(`Digest-tijdstip ingesteld op ${prefDigestTime.value}`)
 })
 
@@ -1205,7 +1209,7 @@ locInput.addEventListener('input', () => {
         if (!loc) return
         locationCoords = { lat: loc.latitude, lon: loc.longitude, name: loc.name }
         try { localStorage.setItem('wp-location', JSON.stringify(locationCoords)) } catch {}
-        await dbWrite('update', 'settings', { id: 'location', data: { value: locationCoords } })
+        await dbWrite('upsert', 'settings', { data: { id: 'location', value: locationCoords } })
         locCurrent.textContent = `Huidige locatie: ${loc.name}`
         locInput.value = ''
         locResults.hidden = true
@@ -1248,6 +1252,7 @@ async function init() {
   await Promise.all([loadEntries(), loadGroceries(), loadFavorites(), loadLocation()])
   subscribeRealtime()
   renderWeek()
+  loadDigestPref()
   initReminders()
   showPushPrompt()
   if (state.currentUser) {

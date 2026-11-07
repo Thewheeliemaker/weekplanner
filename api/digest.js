@@ -128,7 +128,11 @@ export default async function handler(req, res) {
       supabase.from('settings').select('value').eq('id', 'digest_last_sent').single(),
       supabase.from('settings').select('value').eq('id', 'digest_time').single()
     ])
-    const lastSent = typeof lastSentRes.data?.value === 'string' ? lastSentRes.data.value : null
+    // Legacy format was a per-user object like {"Rick": "2026-11-06"}; take the most recent date from it
+    const rawLast = lastSentRes.data?.value
+    const lastSent = typeof rawLast === 'string' ? rawLast
+      : (rawLast && typeof rawLast === 'object') ? (Object.values(rawLast).filter(v => typeof v === 'string').sort().pop() || null)
+      : null
     if (lastSent === today) return res.status(200).json({ ok: true, skipped: true, reason: 'Al verstuurd vandaag' })
 
     const digestTime = timeRes.data?.value || '07:00'
