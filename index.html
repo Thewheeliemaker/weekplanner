@@ -2,18 +2,19 @@
 <html lang="nl">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <link rel="icon" href="/icon-192.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#1f6f6b" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1a1b1c" media="(prefers-color-scheme: dark)" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Weekplanner" />
     <title>Weekplanner</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&display=swap" rel="stylesheet" />
   </head>
   <body>
     <div class="app">
@@ -27,17 +28,29 @@
               <h1>Weekplanner</h1>
             </div>
           </div>
+          <button type="button" class="avatar-btn p-Rick" id="avatarBtn" aria-label="Profiel en instellingen">R</button>
         </div>
         <nav class="tabs" role="tablist">
-          <button class="tab is-active" data-view="week" role="tab" aria-selected="true">Week</button>
-          <button class="tab" data-view="groceries" role="tab" aria-selected="false">Boodschappen</button>
-          <button class="tab tab-new" data-view="board" role="tab" aria-selected="false">Bord <span class="tab-badge" id="newBadge" hidden></span></button>
-          <button class="tab" data-view="profile" role="tab" aria-selected="false">Profiel</button>
+          <button class="tab" data-view="today" role="tab" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg><span>Vandaag</span></button>
+          <button class="tab" data-view="week" role="tab" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="3"></rect><path d="M3 9h18M8 2v4M16 2v4M7 13h2M11 13h2M15 13h2M7 17h2M11 17h2"></path></svg><span>Week</span></button>
+          <button class="tab" data-view="groceries" role="tab" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1.4"></circle><circle cx="18" cy="20" r="1.4"></circle><path d="M2 3h3l2.4 11.2a2 2 0 0 0 2 1.6h8.2a2 2 0 0 0 2-1.5L21 7H6"></path></svg><span class="tab-label-long">Boodschappen</span><span class="tab-label-short">Lijst</span></button>
+          <button class="tab tab-new" data-view="board" role="tab" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"></rect><path d="M9 3v18M3 9h6M3 15h6"></path></svg><span>Bord</span><span class="tab-badge" id="newBadge" hidden></span></button>
         </nav>
       </header>
 
       <main>
-        <section class="view" id="view-week">
+        <section class="view" id="view-today" hidden>
+          <div class="today-head">
+            <div><div class="today-date" id="todayDate"></div><h2 class="today-greet" id="todayGreet"></h2></div>
+          </div>
+          <div class="today-weather" id="todayWeather" hidden></div>
+          <div class="today-list" id="todayList"></div>
+          <div class="today-sub"><span id="tomorrowLabel">Morgen</span><span id="tomorrowWeather"></span></div>
+          <div class="today-tomorrow" id="tomorrowList"></div>
+          <div class="today-strip" id="todayStrip" aria-label="Deze week"></div>
+        </section>
+
+        <section class="view" id="view-week" hidden>
           <div class="panel">
             <div class="week-toolbar">
               <div class="week-nav">
@@ -58,6 +71,7 @@
               </div>
             </div>
             <div class="week-filter-note" id="weekFilterNote" hidden></div>
+            <div class="who-filter" id="whoFilter" role="group" aria-label="Filter op persoon"></div>
 
             <div class="add-panel" id="itemPanel" hidden>
               <div id="quickAddBox">
@@ -77,11 +91,11 @@
                   <div class="field">
                     <label>Wie</label>
                     <div class="who-tags" id="f-who-tags">
-                      <button type="button" class="who-tag" data-who="Siem">Siem</button>
-                      <button type="button" class="who-tag" data-who="Mare">Mare</button>
-                      <button type="button" class="who-tag" data-who="Merel">Merel</button>
-                      <button type="button" class="who-tag" data-who="Rick">Rick</button>
-                      <button type="button" class="who-tag" data-who="Algemeen">Algemeen</button>
+                      <button type="button" class="who-tag p-Siem" data-who="Siem">Siem</button>
+                      <button type="button" class="who-tag p-Mare" data-who="Mare">Mare</button>
+                      <button type="button" class="who-tag p-Merel" data-who="Merel">Merel</button>
+                      <button type="button" class="who-tag p-Rick" data-who="Rick">Rick</button>
+                      <button type="button" class="who-tag p-Algemeen" data-who="Algemeen">Algemeen</button>
                     </div>
                     <input type="hidden" id="f-who" />
                   </div>
@@ -160,8 +174,9 @@
             </div>
 
             <div class="week-table-wrap"><table class="week-table" id="weekTable"></table></div>
-            <div class="status-legend"><span class="legend-item"><span class="ci-dot on-bord"></span> Op het bord</span><span class="legend-item"><span class="ci-dot pending"></span> Nog overzetten</span></div>
+            <div class="status-legend"><span class="legend-item"><span class="legend-dash"></span> Nog op het fysieke bord zetten</span></div>
             <div class="week-agenda" id="weekAgenda"></div>
+            <div class="agenda-legend">Gestippelde rand = nog op het fysieke bord zetten · veeg een item naar links om te verwijderen</div>
             <div class="swipe-hint" id="swipeHint">← swipe voor andere week →</div>
           </div>
         </section>
@@ -275,10 +290,10 @@
         <h2>Weekplanner</h2>
         <p class="login-sub">Wie ben je?</p>
         <div class="login-members" id="loginMembers">
-          <button type="button" class="login-member" data-who="Siem">Siem</button>
-          <button type="button" class="login-member" data-who="Mare">Mare</button>
-          <button type="button" class="login-member" data-who="Merel">Merel</button>
-          <button type="button" class="login-member" data-who="Rick">Rick</button>
+          <button type="button" class="login-member p-Siem" data-who="Siem">Siem</button>
+          <button type="button" class="login-member p-Mare" data-who="Mare">Mare</button>
+          <button type="button" class="login-member p-Merel" data-who="Merel">Merel</button>
+          <button type="button" class="login-member p-Rick" data-who="Rick">Rick</button>
         </div>
         <div class="login-pass-row" id="loginPassRow" hidden>
           <input type="password" id="loginPass" placeholder="Wachtwoord" autocomplete="current-password" />
@@ -288,6 +303,13 @@
       </div>
     </div>
 
+    <button type="button" class="fab" id="fab" aria-label="Toevoegen" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></button>
+    <div class="fab-menu" id="fabMenu" hidden>
+      <button type="button" data-fab="item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="3"></rect><path d="M3 9h18M8 2v4M16 2v4M12 13v5M9.5 15.5h5"></path></svg>Afspraak</button>
+      <button type="button" data-fab="dinner"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v7a2 2 0 0 0 2 2v9M6 3v7M9 3v7M16 3c-1.5 0-2.5 2-2.5 4.5S14.5 12 16 12v9"></path></svg>Avondeten</button>
+      <button type="button" data-fab="grocery"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1.4"></circle><circle cx="18" cy="20" r="1.4"></circle><path d="M2 3h3l2.4 11.2a2 2 0 0 0 2 1.6h8.2a2 2 0 0 0 2-1.5L21 7H6"></path></svg>Boodschap</button>
+      <button type="button" data-fab="scan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2M7 12h10"></path></svg>Rooster scannen</button>
+    </div>
     <div id="pushPrompt" class="push-prompt" hidden><span>Wil je een melding als er iets nieuws op het bord komt?</span><button type="button" class="btn btn-primary btn-sm" id="pushEnable">Inschakelen</button><button type="button" class="btn btn-ghost btn-sm" id="pushDismiss">Nee</button></div>
     <div id="notifyBanner" class="notify-banner" role="alert" aria-live="assertive" hidden><span id="notifyText"></span><button type="button" id="notifyClose" aria-label="Sluiten">&times;</button></div>
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>

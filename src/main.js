@@ -4,7 +4,6 @@ import { dutchHolidays } from './holidays.js'
 
 const FAMILY = ['Siem', 'Mare', 'Merel', 'Rick']
 const COLUMNS = FAMILY.concat(['Algemeen'])
-const FAMILY_HUE = { Siem: 35, Mare: 265, Merel: 340, Rick: 205 }
 const DAY_ORDER = ['maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag', 'zondag']
 const DAY_LABELS = { maandag: 'Maandag', dinsdag: 'Dinsdag', woensdag: 'Woensdag', donderdag: 'Donderdag', vrijdag: 'Vrijdag', zaterdag: 'Zaterdag', zondag: 'Zondag' }
 const DAY_ABBR = { maandag: 'Ma', dinsdag: 'Di', woensdag: 'Wo', donderdag: 'Do', vrijdag: 'Vr', zaterdag: 'Za', zondag: 'Zo' }
@@ -149,17 +148,19 @@ async function loadLocation() {
   } catch {}
 }
 
-async function fetchWeather(days) {
+// key: localStorage slot; the week view and the today view each keep their own range
+async function fetchWeather(days, key = 'wp-weather') {
   const startStr = ymd(days[0])
+  const endStr = ymd(days[days.length - 1])
+  const isWeek = key === 'wp-weather'
   const now = Date.now()
   try {
-    const cached = JSON.parse(localStorage.getItem('wp-weather') || 'null')
-    if (cached && cached.weekStart === startStr && (now - cached.fetched) < 3 * 3600000) {
-      weatherCache.data = cached.data; weatherCache.fetched = cached.fetched; weatherCache.weekStart = startStr
+    const cached = JSON.parse(localStorage.getItem(key) || 'null')
+    if (cached && cached.weekStart === startStr && cached.end === endStr && (now - cached.fetched) < 3 * 3600000) {
+      if (isWeek) { weatherCache.data = cached.data; weatherCache.fetched = cached.fetched; weatherCache.weekStart = startStr }
       return cached.data
     }
   } catch {}
-  const endStr = ymd(days[6])
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${locationCoords.lat}&longitude=${locationCoords.lon}&daily=weather_code,temperature_2m_max,precipitation_sum,precipitation_probability_max,sunshine_duration&timezone=Europe/Amsterdam&start_date=${startStr}&end_date=${endStr}`
   try {
     const resp = await fetch(url)
@@ -176,9 +177,9 @@ async function fetchWeather(days) {
         sun: Math.round((d.sunshine_duration[i] || 0) / 3600 * 10) / 10
       }
     }
-    const store = { data: result, fetched: now, weekStart: startStr }
-    try { localStorage.setItem('wp-weather', JSON.stringify(store)) } catch {}
-    weatherCache.data = result; weatherCache.fetched = now; weatherCache.weekStart = startStr
+    const store = { data: result, fetched: now, weekStart: startStr, end: endStr }
+    try { localStorage.setItem(key, JSON.stringify(store)) } catch {}
+    if (isWeek) { weatherCache.data = result; weatherCache.fetched = now; weatherCache.weekStart = startStr }
     return result
   } catch { return null }
 }
@@ -188,6 +189,9 @@ function weatherHtml(dateStr, weather) {
   const w = weather[dateStr]
   return `<div class="weather-row">${weatherIcon(w.code)} ${w.temp}° ${w.rainPct}% ${w.rain}mm ☀${w.sun}u</div>`
 }
+
+const WEATHER_DESC = [[0, 'Zonnig'], [2, 'Half bewolkt'], [3, 'Bewolkt'], [48, 'Mistig'], [55, 'Motregen'], [57, 'Motregen'], [63, 'Regen'], [67, 'IJzel'], [75, 'Sneeuw'], [77, 'Korrelsneeuw'], [82, 'Buien'], [86, 'Sneeuwbuien'], [99, 'Onweer']]
+function weatherDesc(code) { for (const [max, label] of WEATHER_DESC) if (code <= max) return label; return 'Bewolkt' }
 
 function weatherChipHtml(dateStr, weather) {
   if (!weather || !weather[dateStr]) return ''
@@ -217,20 +221,18 @@ function shortDate(d) { return d.toLocaleDateString('nl-NL', { day: 'numeric', m
 function fmtDateFull(iso) { try { return new Date(iso + 'T00:00:00').toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' }) } catch { return iso } }
 function todayInfo() { const d = new Date(); return { iso: ymd(d), weekday: DAY_LABELS[dayNameOf(d)] } }
 
-function isDark() {
-  const el = document.documentElement
-  if (el.getAttribute('data-theme') === 'dark') return true
-  if (el.getAttribute('data-theme') === 'light') return false
-  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
-}
-function hueColors(hue) {
-  const dark = isDark()
-  return { bg: `hsl(${hue},${dark ? '34%' : '62%'},${dark ? '22%' : '91%'})`, fg: `hsl(${hue},${dark ? '55%' : '48%'},${dark ? '78%' : '32%'})` }
-}
+// Person colours come from CSS classes (.p-Siem etc.), so light/dark is handled by the stylesheet
+function personClass(name) { return 'p-' + (FAMILY.includes(name) ? name : 'Algemeen') }
 function chipHtml(who) {
-  if (who === 'Algemeen' || !FAMILY_HUE[who]) return '<span class="chip chip-algemeen">Algemeen</span>'
-  const c = hueColors(FAMILY_HUE[who])
-  return `<span class="chip" style="background:${c.bg};color:${c.fg}">${esc(who)}</span>`
+  if (who === 'Algemeen' || !FAMILY.includes(who)) return '<span class="chip p-Algemeen">Algemeen</span>'
+  return `<span class="chip ${personClass(who)}">${esc(who)}</span>`
+}
+// Colour class + optional split style for an entry (first person; two-tone when two people)
+function entryColor(e) {
+  if (e.category === 'eten') return { cls: 'p-Eten', style: '' }
+  const names = whoList(e).filter(n => FAMILY.includes(n))
+  if (names.length >= 2) return { cls: personClass(names[0]) + ' is-split', style: `--split-a:var(--${names[0].toLowerCase()}-bg);--split-b:var(--${names[1].toLowerCase()}-bg)` }
+  return { cls: personClass(names[0] || 'Algemeen'), style: '' }
 }
 
 // ── Supabase data helpers (snake_case ↔ camelCase) ──
@@ -271,7 +273,7 @@ async function loadGroceries() {
 async function loadFavorites() {
   const { data, error } = await supabase.from('favorieten').select('*').order('naam', { ascending: true }).limit(100)
   let rows = data
-  if (error) { const c = cacheLoad('favorites'); if (!c) { toast('Kon favorieten niet laden.'); return } rows = c.rows } else cacheSave('favorites', rows)
+  if (error) { const c = cacheLoad('favorites'); if (!c) return; rows = c.rows } else cacheSave('favorites', rows)
   state.favorites = rows.map(r => ({ id: r.id, naam: r.naam, createdAt: r.created_at }))
   renderFavChips(); renderFavManageList()
 }
@@ -378,7 +380,7 @@ function isBirthday(e) { return e.type === 'jaarlijks' && e.birthYear }
 // Dutch holidays are calculated, not stored. Skipped when a stored entry with the same title+date exists.
 function holidayEntries() {
   const days = getWeekDays(state.weekOffset)
-  const years = [...new Set([days[0].getFullYear(), days[6].getFullYear()])]
+  const years = [...new Set([days[0].getFullYear(), days[6].getFullYear(), new Date().getFullYear()])]
   const out = []
   for (const y of years) for (const h of dutchHolidays(y)) {
     if (state.entries.some(e => e.date === h.date && e.title === h.title)) continue
@@ -419,6 +421,11 @@ function buildConflictMap(days) {
     }
   }
   return map
+}
+function conflictsFor(e, dStr) {
+  if (!showTimeForDay(e, dStr) || e.category === 'eten' || e.isHoliday) return []
+  const d = new Date(dStr + 'T12:00:00')
+  return timedItemsOn(dayNameOf(d), dStr, visibleEntries()).filter(o => o.id !== e.id && overlaps(e, o, dStr))
 }
 function conflictBadge(e, dStr) {
   const others = weekConflicts.get(e.id + '|' + dStr)
@@ -513,9 +520,7 @@ function renderWeek() {
   const theadHtml = '<thead><tr><th class="day-th">Dag</th>' + visibleCols.map(col => {
     const active = state.filterWho === col
     const cls = 'col-clickable' + (active ? ' is-filtered' : '')
-    if (col === 'Algemeen') return `<th class="${cls} col-algemeen" data-col="${esc(col)}">Algemeen</th>`
-    const c = hueColors(FAMILY_HUE[col])
-    return `<th class="${cls}" data-col="${esc(col)}" style="color:${c.fg};border-bottom:3px solid ${c.fg};">${esc(col)}</th>`
+    return `<th class="${cls} ${personClass(col)}" data-col="${esc(col)}">${esc(col)}</th>`
   }).join('') + '</tr></thead>'
 
   const rows = days.map(day => {
@@ -525,7 +530,8 @@ function renderWeek() {
         .sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'))
       const body = items.map(e => {
         const t = showTimeForDay(e, dStr)
-        return `<div class="ci" data-id="${esc(e.id)}" title="${esc(entryTooltip(e))}">${entryIconHtml(e, col)}<span class="ci-dot ${e.opFysiekBord ? 'on-bord' : 'pending'}" title="${e.opFysiekBord ? 'Staat op het bord' : 'Nog overzetten'}"></span>${t ? `<span class="ci-time mono">${esc(t)}</span>` : ''}<span class="ci-title">${esc(e.title)}</span>${entryAgeBadge(e, dStr)}${conflictBadge(e, dStr)}${e.note ? '<svg class="ci-note" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>' : ''}${e.isHoliday ? '' : `<button class="ci-del" data-id="${esc(e.id)}" data-date="${esc(dStr)}" aria-label="Verwijderen">×</button>`}</div>`
+        const c = e.category === 'eten' ? 'p-Eten' : personClass(col)
+        return `<div class="ci ${c}${e.opFysiekBord ? '' : ' is-pending'}" data-id="${esc(e.id)}" title="${esc(entryTooltip(e) || (e.opFysiekBord ? '' : 'Nog op het bord zetten'))}">${entryIconHtml(e, col)}${t ? `<span class="ci-time mono">${esc(t)}</span>` : ''}<span class="ci-title">${esc(e.title)}</span>${entryAgeBadge(e, dStr)}${conflictBadge(e, dStr)}${e.note ? '<svg class="ci-note" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>' : ''}${e.isHoliday ? '' : `<button class="ci-del" data-id="${esc(e.id)}" data-date="${esc(dStr)}" aria-label="Verwijderen">×</button>`}</div>`
       }).join('')
       return `<td${col === 'Algemeen' ? ' class="col-algemeen"' : ''}>${body}<button class="cell-add" data-date="${esc(dStr)}" data-dayname="${esc(dName)}" data-who="${esc(col)}">+</button></td>`
     }).join('')
@@ -546,7 +552,9 @@ function renderWeek() {
   table.querySelectorAll('.day-add').forEach(btn => btn.addEventListener('click', () => openItemForDay(btn.dataset.date, btn.dataset.dayname)))
   table.querySelectorAll('.cell-add').forEach(btn => btn.addEventListener('click', () => openItemForDay(btn.dataset.date, btn.dataset.dayname, btn.dataset.who)))
 
+  renderWhoFilter()
   renderWeekAgenda(days, todayStr)
+  renderToday()
   loadWeather(days)
 }
 
@@ -566,26 +574,152 @@ async function loadWeather(days) {
   if (weather) renderWeek()
 }
 
+const SVG = {
+  note: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>',
+  warn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg>',
+  eat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v7a2 2 0 0 0 2 2v9M6 3v7M9 3v7M16 3c-1.5 0-2.5 2-2.5 4.5S14.5 12 16 12v9"></path></svg>',
+  bell: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"></path></svg>',
+  cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="3"></rect><path d="M3 9h18M8 2v4M16 2v4"></path></svg>',
+  x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"></path></svg>'
+}
+
+// Sort: timed items first (by time), then holidays, birthdays, other all-day items, dinner last
+function itemRank(e) { return e.isHoliday ? 1 : isBirthday(e) ? 2 : e.category === 'eten' ? 4 : 3 }
+function sortForDay(dStr) {
+  return (a, b) => {
+    const ta = showTimeForDay(a, dStr), tb = showTimeForDay(b, dStr)
+    if (ta && tb) return ta.localeCompare(tb)
+    if (ta) return -1
+    if (tb) return 1
+    return itemRank(a) - itemRank(b)
+  }
+}
+function itemsOn(d) {
+  const dStr = ymd(d), dName = dayNameOf(d)
+  return visibleEntries().filter(e => entryMatchesDay(e, dName, dStr)).sort(sortForDay(dStr))
+}
+
+// One colour block for an entry on a given day. size: 'lg' | '' | 'sm'
+function blockHtml(e, dStr, size = '') {
+  const c = entryColor(e)
+  const t = showTimeForDay(e, dStr)
+  const names = whoList(e).filter(n => FAMILY.includes(n))
+  const meta = []
+  if (names.length) meta.push(names.join(' & '))
+  if (e.isHoliday) meta.push('Nationale feestdag')
+  if (e.category === 'eten') meta.push('Avondeten')
+  if (isBirthday(e)) { const age = ageForYear(e.birthYear, parseInt(dStr.slice(0, 4))); if (age > 0) meta.push('wordt ' + age) }
+  if (!e.opFysiekBord) meta.push('nog op het bord zetten')
+  const clashes = conflictsFor(e, dStr)
+  const pre = e.isHoliday ? '🇳🇱 ' : isBirthday(e) ? '🎂 ' : e.category === 'eten' ? `<span class="blk-icons">${SVG.eat}</span> ` : ''
+  const post = (e.note ? ` <span class="blk-icons" title="Heeft een notitie">${SVG.note}</span>` : '') +
+    (clashes.length ? ` <span class="blk-icons blk-warn" title="Overlapt met ${esc(clashes.map(o => o.title).join(', '))}">${SVG.warn}</span>` : '')
+  return `<div class="blk ${size} ${c.cls}${e.opFysiekBord ? '' : ' is-pending'}" style="${c.style}" data-id="${esc(e.id)}" data-date="${esc(dStr)}" role="button" tabindex="0">${t ? `<div class="blk-time">${esc(t)}</div>` : ''}<div class="blk-body"><div class="blk-title">${pre}${esc(e.title)}${post}</div>${meta.length ? `<div class="blk-meta">${esc(meta.join(' · '))}</div>` : ''}</div></div>`
+}
+
+// Tap opens the detail sheet; swipe left deletes (with the usual undo / recurring choice)
+function wireBlocks(root) {
+  root.querySelectorAll('.blk[data-id]').forEach(el => {
+    const id = el.dataset.id, dStr = el.dataset.date
+    el.addEventListener('click', () => { if (el._swiped) { el._swiped = false; return } openDetailEntry(id, el, dStr) })
+    el.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openDetailEntry(id, el, dStr) } })
+    if (id.startsWith('feestdag-')) return
+    let x0 = 0, y0 = 0, dx = 0, active = false
+    el.addEventListener('touchstart', ev => { x0 = ev.touches[0].clientX; y0 = ev.touches[0].clientY; dx = 0; active = false }, { passive: true })
+    el.addEventListener('touchmove', ev => {
+      const mx = ev.touches[0].clientX - x0, my = ev.touches[0].clientY - y0
+      if (!active && Math.abs(mx) > 12 && Math.abs(mx) > Math.abs(my) * 1.5 && mx < 0) active = true
+      if (active) { dx = Math.min(0, mx); el.classList.add('is-swiping'); el.style.transform = `translateX(${dx}px)` }
+    }, { passive: true })
+    el.addEventListener('touchend', ev => {
+      if (!active) return
+      ev.stopPropagation() // don't also switch weeks
+      el.classList.remove('is-swiping')
+      el._swiped = true
+      if (dx < -90) { el.classList.add('is-deleting'); setTimeout(() => { el.style.transform = ''; el.classList.remove('is-deleting'); handleEntryDeleteClick(id, dStr) }, 180) }
+      else el.style.transform = ''
+    })
+  })
+}
+
+function renderWhoFilter() {
+  const wrap = $('whoFilter'); if (!wrap) return
+  wrap.innerHTML = `<button type="button" class="who-chip is-all${state.filterWho ? '' : ' is-on'}" data-who="">Iedereen</button>` +
+    COLUMNS.map(n => `<button type="button" class="who-chip ${personClass(n)}${state.filterWho === n ? ' is-on' : ''}" data-who="${esc(n)}">${esc(n)}</button>`).join('')
+  wrap.querySelectorAll('.who-chip').forEach(b => b.addEventListener('click', () => { state.filterWho = b.dataset.who || null; renderWeek() }))
+}
+
 function renderWeekAgenda(days, todayStr) {
   const wrap = $('weekAgenda'); if (!wrap) return
   wrap.innerHTML = days.map(day => {
     const dName = dayNameOf(day), dStr = ymd(day), isToday = dStr === todayStr
-    const items = visibleEntries().filter(e => entryMatchesDay(e, dName, dStr))
-      .sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'))
+    const items = itemsOn(day).filter(e => !state.filterWho || entryHasWho(e, state.filterWho))
     const itemsHtml = items.length === 0
-      ? '<li class="agenda-empty">Niets gepland</li>'
-      : items.map(e => {
-          const t = showTimeForDay(e, dStr)
-          const names = whoList(e)
-          const chips = (e.category === 'eten' ? [] : names).map(n => chipHtml(n)).join('')
-          return `<li class="agenda-item" data-id="${esc(e.id)}" title="${esc(entryTooltip(e))}">${entryIconHtml(e, names[0])}${chips}${t ? `<span class="agenda-time mono">${esc(t)}</span>` : ''}<span class="agenda-title">${esc(e.title)}</span>${entryAgeBadge(e, dStr)}${conflictBadge(e, dStr)}${e.note ? '<svg class="ci-note" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>' : ''}<span class="ci-dot ${e.opFysiekBord ? 'on-bord' : 'pending'}"></span>${e.isHoliday ? '' : `<button class="agenda-del" data-id="${esc(e.id)}" data-date="${esc(dStr)}" aria-label="Verwijderen">×</button>`}</li>`
-        }).join('')
+      ? `<div class="agenda-empty">Niets gepland · <button type="button" class="agenda-empty-add" data-date="${esc(dStr)}" data-dayname="${esc(dName)}">+ toevoegen</button></div>`
+      : items.map(e => blockHtml(e, dStr)).join('')
     const wChip = state.weather ? weatherChipHtml(dStr, state.weather) : ''
-    return `<div class="agenda-day${isToday ? ' is-today' : ''}"><div class="agenda-day-head"><span class="agenda-day-name">${DAY_LABELS[dName]}</span><span class="agenda-day-date mono">${shortDate(day)}</span>${wChip}<button class="agenda-day-add" data-date="${esc(dStr)}" data-dayname="${esc(dName)}" aria-label="Item toevoegen">+</button></div><ul class="agenda-items">${itemsHtml}</ul></div>`
+    return `<div class="agenda-day${isToday ? ' is-today' : ''}" data-date="${esc(dStr)}"><div class="agenda-day-head"><span class="agenda-day-name">${DAY_LABELS[dName]} ${day.getDate()}</span>${isToday ? '<span class="agenda-today-pill">vandaag</span>' : ''}${wChip}<button class="agenda-day-add" data-date="${esc(dStr)}" data-dayname="${esc(dName)}" aria-label="Item toevoegen op ${DAY_LABELS[dName]}">+</button></div><div class="agenda-items">${itemsHtml}</div></div>`
   }).join('')
-  wrap.querySelectorAll('.agenda-del').forEach(btn => btn.addEventListener('click', ev => { ev.stopPropagation(); handleEntryDeleteClick(btn.dataset.id, btn.dataset.date) }))
-  wrap.querySelectorAll('.agenda-item[data-id]').forEach(li => { const dayDiv = li.closest('.agenda-day'); const dStr = dayDiv ? dayDiv.querySelector('.agenda-day-add')?.dataset.date : null; li.addEventListener('click', () => openDetailEntry(li.dataset.id, li, dStr)) })
-  wrap.querySelectorAll('.agenda-day-add').forEach(btn => btn.addEventListener('click', () => openItemForDay(btn.dataset.date, btn.dataset.dayname)))
+  wireBlocks(wrap)
+  wrap.querySelectorAll('.agenda-day-add, .agenda-empty-add').forEach(btn => btn.addEventListener('click', () => openItemForDay(btn.dataset.date, btn.dataset.dayname, state.filterWho || undefined)))
+}
+
+// ── today view ──
+let todayWeather = null, todayWeatherAt = 0
+async function loadTodayWeather() {
+  if (!pref('showWeather', true)) { todayWeather = null; renderToday(); return }
+  if (todayWeather && Date.now() - todayWeatherAt < 3 * 3600000) return
+  const days = getWeekDays(0)
+  const tomorrow = new Date(); tomorrow.setHours(0, 0, 0, 0); tomorrow.setDate(tomorrow.getDate() + 1)
+  if (tomorrow > days[6]) days.push(tomorrow)
+  const w = await fetchWeather(days, 'wp-weather-today')
+  if (w) { todayWeather = w; todayWeatherAt = Date.now(); renderToday() }
+}
+function greeting(h) { return h < 6 ? 'Goedenacht' : h < 12 ? 'Goedemorgen' : h < 18 ? 'Goedemiddag' : 'Goedenavond' }
+function renderToday() {
+  const view = $('view-today'); if (!view) return
+  const now = new Date(), todayStr = ymd(now)
+  const tomorrow = new Date(now); tomorrow.setDate(now.getDate() + 1)
+  $('todayDate').textContent = capitalize(now.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' })) + ' · week ' + isoWeekNum(now)
+  $('todayGreet').textContent = greeting(now.getHours()) + (state.currentUser ? ' ' + state.currentUser : '')
+
+  const wEl = $('todayWeather'), w = todayWeather && todayWeather[todayStr]
+  if (w) {
+    wEl.hidden = false
+    wEl.innerHTML = `<div class="today-weather-icon" aria-hidden="true">${weatherIcon(w.code)}</div><div><div class="today-weather-main">${w.temp}° <span>${esc(weatherDesc(w.code).toLowerCase())}</span></div><div class="today-weather-sub">${w.rainPct}% kans op regen · ${w.rain} mm · ☀ ${w.sun} uur zon</div></div>`
+  } else wEl.hidden = true
+
+  const items = itemsOn(now)
+  const main = items.filter(e => showTimeForDay(e, todayStr) || itemRank(e) === 3)
+  const minis = items.filter(e => !main.includes(e))
+  $('todayList').innerHTML = items.length === 0
+    ? '<div class="today-empty">Niets gepland vandaag.</div>'
+    : main.map(e => blockHtml(e, todayStr, 'lg')).join('') + (minis.length ? `<div class="today-minis">${minis.map(e => blockHtml(e, todayStr)).join('')}</div>` : '')
+
+  const tStr = ymd(tomorrow), tw = todayWeather && todayWeather[tStr]
+  $('tomorrowLabel').textContent = 'Morgen · ' + tomorrow.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric' })
+  $('tomorrowWeather').textContent = tw ? `${weatherIcon(tw.code)} ${tw.temp}° · ${tw.rainPct}%` : ''
+  const tItems = itemsOn(tomorrow)
+  $('tomorrowList').innerHTML = tItems.length ? tItems.map(e => blockHtml(e, tStr, 'sm')).join('') : '<div class="agenda-empty">Niets gepland</div>'
+
+  $('todayStrip').innerHTML = getWeekDays(0).map(d => {
+    const dStr = ymd(d), its = itemsOn(d)
+    const people = [...new Set(its.flatMap(e => whoList(e)).filter(n => FAMILY.includes(n)))].slice(0, 4)
+    const dw = todayWeather && todayWeather[dStr]
+    return `<button type="button" class="strip-day${dStr === todayStr ? ' is-today' : ''}" data-date="${dStr}" aria-label="${DAY_LABELS[dayNameOf(d)]}: ${its.length} items"><span>${DAY_ABBR[dayNameOf(d)].toLowerCase()}</span><span class="strip-count">${its.length}</span><span>${dw ? weatherIcon(dw.code) + ' ' + dw.temp + '°' : '&nbsp;'}</span><span class="strip-dots">${people.map(n => `<span class="${personClass(n)}"></span>`).join('')}</span></button>`
+  }).join('')
+
+  wireBlocks(view)
+  view.querySelectorAll('.strip-day').forEach(b => b.addEventListener('click', () => goToDay(b.dataset.date)))
+}
+function goToDay(dStr) {
+  state.weekOffset = 0
+  showView('week')
+  renderWeek()
+  requestAnimationFrame(() => {
+    const el = document.querySelector(`.agenda-day[data-date="${dStr}"]`)
+    if (el && el.offsetParent) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  })
 }
 
 // ── week nav ──
@@ -641,15 +775,42 @@ document.addEventListener('keydown', (ev) => {
   }, { passive: true })
 })()
 
-// ── tabs ──
-document.querySelectorAll('.tab').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const view = btn.dataset.view
-    document.querySelectorAll('.tab').forEach(b => { b.classList.toggle('is-active', b === btn); b.setAttribute('aria-selected', b === btn ? 'true' : 'false') })
-    ;['week', 'groceries', 'board', 'profile'].forEach(v => $('view-' + v).hidden = v !== view)
-    if (view === 'board') markNewAsSeen()
-    if (view === 'profile') { $('profileUser').textContent = state.currentUser || '—'; $('profileAvatar').textContent = state.currentUser ? state.currentUser.charAt(0).toUpperCase() : '—' }
-  })
+// ── views / tabs ──
+const VIEWS = ['today', 'week', 'groceries', 'board', 'profile']
+const mobileQuery = window.matchMedia('(max-width: 760px)')
+function defaultView() { return mobileQuery.matches ? 'today' : 'week' }
+let currentView = null
+function showView(view) {
+  currentView = view
+  document.querySelectorAll('.tab').forEach(b => { const on = b.dataset.view === view; b.classList.toggle('is-active', on); b.setAttribute('aria-selected', on ? 'true' : 'false') })
+  $('avatarBtn').classList.toggle('is-active', view === 'profile')
+  VIEWS.forEach(v => { $('view-' + v).hidden = v !== view })
+  closeFabMenu(); closeInlineDetail()
+  if (view === 'board') markNewAsSeen()
+  if (view === 'profile') { $('profileUser').textContent = state.currentUser || '—'; $('profileAvatar').textContent = state.currentUser ? state.currentUser.charAt(0).toUpperCase() : '—' }
+  if (view === 'today') { renderToday(); loadTodayWeather() }
+  window.scrollTo(0, 0)
+}
+document.querySelectorAll('.tab').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.view)))
+$('avatarBtn').addEventListener('click', () => showView(currentView === 'profile' ? defaultView() : 'profile'))
+
+// ── floating add button (mobile) ──
+const fab = $('fab'), fabMenu = $('fabMenu')
+function closeFabMenu() { if (!fabMenu) return; fabMenu.hidden = true; fab.classList.remove('is-open'); fab.setAttribute('aria-expanded', 'false') }
+fab.addEventListener('click', ev => {
+  ev.stopPropagation()
+  const open = fabMenu.hidden
+  fabMenu.hidden = !open; fab.classList.toggle('is-open', open); fab.setAttribute('aria-expanded', String(open))
+})
+document.addEventListener('click', ev => { if (!fabMenu.hidden && !fabMenu.contains(ev.target)) closeFabMenu() })
+fabMenu.addEventListener('click', ev => {
+  const b = ev.target.closest('[data-fab]'); if (!b) return
+  const action = b.dataset.fab
+  closeFabMenu()
+  if (action === 'item') { showView('week'); hideAllPanels(); state.addForDate = null; state.editId = null; resetItemPanel(); itemPanel.hidden = false; itemPanel.scrollIntoView({ block: 'start' }) }
+  else if (action === 'dinner') { showView('week'); if (dinnerPanel.hidden) $('btnNewDinner').click(); dinnerPanel.scrollIntoView({ block: 'start' }) }
+  else if (action === 'grocery') { showView('groceries'); focusSoon('g-input') }
+  else if (action === 'scan') { showView('board'); if (photoPanel.hidden) $('btnPhoto').click() }
 })
 
 // ── item form ──
@@ -683,8 +844,7 @@ function openItemForDay(dateStr, dayName, who) {
 }
 let _detailOutsideHandler = null
 function closeInlineDetail() {
-  const existing = document.querySelector('.detail-popover, .detail-inline')
-  if (existing) existing.remove()
+  document.querySelectorAll('.detail-popover, .detail-inline, .detail-sheet, .sheet-backdrop').forEach(el => el.remove())
   if (_detailOutsideHandler) { document.removeEventListener('click', _detailOutsideHandler); _detailOutsideHandler = null }
   state.detailId = null
 }
@@ -703,6 +863,7 @@ function positionPopover(pop, anchor) {
   pop.style.left = left + 'px'
 }
 
+const REMINDER_LABELS = { 0: 'Op het moment zelf', 15: '15 minuten van tevoren', 30: '30 minuten van tevoren', 60: '1 uur van tevoren', 1440: '1 dag van tevoren' }
 function openDetailEntry(id, clickedEl, dateStr) {
   const e = findEntry(id)
   if (!e) return
@@ -710,41 +871,54 @@ function openDetailEntry(id, clickedEl, dateStr) {
   closeInlineDetail()
   if (wasOpen) return
   state.detailId = id
-  const TYPE_LABELS = { wekelijks: 'Wekelijks', jaarlijks: 'Jaarlijks', eenmalig: 'Eenmalig', periode: 'Periode' }
-  let sched = TYPE_LABELS[e.type] || e.type
-  if (e.weekday) sched += ' · ' + DAY_LABELS[e.weekday]
-  if (e.date) sched += ' · ' + fmtDateFull(e.date)
-  if (e.endDate) sched += ' t/m ' + fmtDateFull(e.endDate)
-  if (e.time) sched += ' om ' + e.time
-  const who = (e.who || '').split(',').map(n => chipHtml(n.trim())).join(' ')
-  const bday = e.birthYear ? '<div class="detail-muted">🎂 Geboortejaar ' + e.birthYear + '</div>' : ''
-  const note = e.note ? '<div class="detail-popover-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>' + esc(e.note) + '</div>' : ''
+  const dStr = dateStr || ymd(new Date())
+  let when
+  if (e.type === 'wekelijks') when = 'Elke ' + (DAY_LABELS[e.weekday] || '').toLowerCase() + (e.endDate ? ' t/m ' + fmtDateFull(e.endDate) : '')
+  else if (e.type === 'periode') when = fmtDateFull(e.date) + ' t/m ' + fmtDateFull(e.endDate)
+  else if (e.type === 'jaarlijks') when = fmtDateFull(dStr) + ' · jaarlijks'
+  else when = fmtDateFull(e.date)
+  if (e.time) when += ' · ' + e.time
+  const names = whoList(e).filter(n => FAMILY.includes(n))
+  const c = entryColor(e)
+  const rows = []
+  if (e.note) rows.push(`<div class="detail-row">${SVG.note}<span>${esc(e.note)}</span></div>`)
+  if (e.reminderMinutes != null) rows.push(`<div class="detail-row">${SVG.bell}<span>Herinnering: ${esc(REMINDER_LABELS[e.reminderMinutes] || e.reminderMinutes + ' min van tevoren')}</span></div>`)
+  if (isBirthday(e)) { const age = ageForYear(e.birthYear, parseInt(dStr.slice(0, 4))); rows.push(`<div class="detail-row"><span>🎂</span><span>Geboren in ${e.birthYear}${age > 0 ? ', wordt ' + age : ''}</span></div>`) }
+  const clashes = conflictsFor(e, dStr)
+  if (clashes.length) rows.push(`<div class="detail-row is-warn">${SVG.warn}<span>Overlapt met ${esc(clashes.map(o => o.title + (whoList(o).some(n => FAMILY.includes(n)) ? ' (' + whoList(o).join(' & ') + ')' : '') + ' om ' + showTimeForDay(o, dStr)).join(', '))}</span></div>`)
+  if (e.isHoliday) rows.push(`<div class="detail-row">${SVG.cal}<span>Nationale feestdag, automatisch toegevoegd</span></div>`)
+  else rows.push(`<div class="detail-row"><span class="detail-status-dot" style="background:${e.opFysiekBord ? 'var(--good)' : 'var(--warn-line)'}"></span><span>${e.opFysiekBord ? 'Staat op het fysieke bord' : 'Nog op het fysieke bord zetten'}</span></div>`)
+  const inner = `<div class="sheet-grip"></div><div class="detail-hero ${c.cls}" style="${c.style}"><div class="detail-who">${esc(names.join(' & ') || (e.category === 'eten' ? 'Avondeten' : 'Algemeen'))}</div><div class="detail-title">${e.isHoliday ? '🇳🇱 ' : ''}${esc(e.title)}</div><div class="detail-when">${esc(when)}</div><button type="button" class="detail-close" aria-label="Sluiten">${SVG.x}</button></div><div class="detail-rows">${rows.join('')}</div>${e.isHoliday ? '' : `<div class="detail-actions"><button type="button" class="btn btn-primary detail-edit">Bewerken</button><button type="button" class="btn btn-danger detail-delete">Verwijderen</button></div><div class="detail-hint">Tip: veeg een item naar links om het te verwijderen</div>`}`
+
   const inTable = clickedEl && clickedEl.closest('.week-table')
-  const closeIcon = inTable
-    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M18 6L6 18M6 6l12 12"/></svg>'
-    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M18 15l-6-6-6 6"/></svg>'
-  const div = document.createElement('div')
-  div.className = inTable ? 'detail-popover' : 'detail-inline'
-  div.innerHTML = `<div class="detail-popover-inner"><div class="detail-popover-head"><strong>${esc(e.title)}</strong><button class="detail-popover-close" aria-label="Sluiten">${closeIcon}</button></div><div class="detail-popover-body">${who}<div class="detail-muted"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;vertical-align:-2px;margin-right:3px;opacity:0.6"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>${esc(sched)}</div>${note}${bday}</div><div class="detail-popover-actions"${e.isHoliday ? ' hidden' : ''}><button class="btn btn-primary btn-sm detail-popover-edit" data-id="${esc(e.id)}">Bewerken</button><button class="btn btn-ghost btn-sm detail-popover-delete" data-id="${esc(e.id)}" style="color:var(--danger)">Verwijderen</button></div></div>`
-  div.querySelector('.detail-popover-close').addEventListener('click', () => closeInlineDetail())
-  if (e.isHoliday) div.querySelector('.detail-popover-body').insertAdjacentHTML('beforeend', '<div class="detail-muted">Nationale feestdag (automatisch)</div>')
-  div.querySelector('.detail-popover-edit').addEventListener('click', (ev) => { ev.stopPropagation(); closeInlineDetail(); openEditEntry(e.id) })
-  div.querySelector('.detail-popover-delete').addEventListener('click', (ev) => { ev.stopPropagation(); closeInlineDetail(); handleEntryDeleteClick(e.id, dateStr || ymd(new Date())) })
-  _detailOutsideHandler = () => closeInlineDetail()
-  setTimeout(() => document.addEventListener('click', _detailOutsideHandler), 0)
+  const box = document.createElement('div')
+  box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', e.title)
   if (inTable) {
-    positionPopover(div, clickedEl)
-  } else if (clickedEl) {
-    clickedEl.insertAdjacentElement('afterend', div)
-    div.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    box.className = 'detail-popover'
+    box.innerHTML = `<div class="detail-sheet-inner">${inner}</div>`
+    box.addEventListener('click', ev => ev.stopPropagation())
+    positionPopover(box, clickedEl)
+    _detailOutsideHandler = () => closeInlineDetail()
+    setTimeout(() => document.addEventListener('click', _detailOutsideHandler), 0)
   } else {
-    document.body.appendChild(div)
+    const backdrop = document.createElement('div')
+    backdrop.className = 'sheet-backdrop'
+    backdrop.addEventListener('click', () => closeInlineDetail())
+    box.className = 'detail-sheet'
+    box.innerHTML = inner
+    document.body.append(backdrop, box)
   }
+  box.querySelector('.detail-close').addEventListener('click', () => closeInlineDetail())
+  box.querySelector('.detail-edit')?.addEventListener('click', () => { closeInlineDetail(); openEditEntry(e.id) })
+  box.querySelector('.detail-delete')?.addEventListener('click', () => { closeInlineDetail(); handleEntryDeleteClick(e.id, dStr) })
+  box.querySelector('.detail-close').focus({ preventScroll: true })
 }
+document.addEventListener('keydown', ev => { if (ev.key === 'Escape') { closeInlineDetail(); closeFabMenu() } })
 
 function openEditEntry(id) {
   const e = state.entries.find(x => x.id === id)
   if (!e) return
+  if (currentView !== 'week') showView('week')
   state.editId = id
   state.addForDate = null
   hideAllPanels()
@@ -1183,6 +1357,7 @@ function saveAuthResponse(json) {
 
 async function skipLogin(user, password) {
   state.currentUser = user; document.documentElement.dataset.user = user
+  const av = $('avatarBtn'); av.textContent = user.charAt(0).toUpperCase(); av.className = 'avatar-btn ' + personClass(user) + (currentView === 'profile' ? ' is-active' : '')
   await ensureDbSession(password)
   loginOverlay.hidden = true; init()
 }
@@ -1375,6 +1550,7 @@ async function init() {
   await Promise.all([loadEntries(), loadGroceries(), loadFavorites(), loadLocation()])
   subscribeRealtime()
   renderWeek()
+  loadTodayWeather()
   loadDigestPref()
   loadDigestTime()
   showPushPrompt()
@@ -1441,3 +1617,5 @@ async function verifySavedLogin(password) {
     }
   } catch {}
 }
+
+showView(defaultView())
