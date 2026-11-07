@@ -297,15 +297,11 @@ function renderTasks() {
       : (DAY_LABELS[e.weekday] ? 'Elke ' + DAY_LABELS[e.weekday].toLowerCase() : '')
     if (e.time) when += (when ? ' · ' : '') + e.time
     if (e.endDate && e.type === 'wekelijks') when += ' (t/m ' + fmtDateFull(e.endDate) + ')'
-    return `<li class="task-row"><button class="task-check" data-id="${esc(e.id)}" aria-label="Markeer als overgezet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"></path></svg></button><div class="task-body"><div class="task-title">${esc(e.title)} ${e.category === 'eten' ? '' : chipHtml(e.who)}</div>${when ? `<div class="task-when mono">${esc(when)}</div>` : ''}${e.note ? `<div class="task-note">${esc(e.note)}</div>` : ''}<span class="task-source">${e.source === 'handmatig' ? 'handmatig' : e.source === 'foto' ? 'via foto' : 'via beschrijving'}</span></div><button class="icon-btn task-del" data-id="${esc(e.id)}" aria-label="Verwijderen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-8 0 1 12a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1l1-12"></path></svg></button></li>`
+    return `<li class="task-row"><button class="task-check" data-id="${esc(e.id)}" aria-label="Markeer als overgezet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"></path></svg></button><div class="task-body"><div class="task-title">${esc(e.title)} ${e.category === 'eten' ? '' : chipHtml(e.who)}</div>${when ? `<div class="task-when mono">${esc(when)}</div>` : ''}${e.note ? `<div class="task-note">${esc(e.note)}</div>` : ''}<span class="task-source">${e.source === 'handmatig' ? 'handmatig' : e.source === 'foto' ? 'via foto' : 'via beschrijving'}</span></div></li>`
   }).join('')
   ul.querySelectorAll('.task-check').forEach(btn => btn.addEventListener('click', async () => {
     const { error } = await dbWrite('update', 'entries', { id: btn.dataset.id, data: { op_fysiek_bord: true } })
     if (error) toast('Kon niet bijwerken.'); else { toast('Overgezet op het bord.'); loadEntries() }
-  }))
-  ul.querySelectorAll('.task-del').forEach(btn => btn.addEventListener('click', () => {
-    const entry = state.entries.find(e => e.id === btn.dataset.id)
-    if (entry) deleteOneWithUndo('entries', entry.id, entryToRow(entry), 'item').then(loadEntries)
   }))
 
   const archiveList = $('archiveList'), archiveCount = $('archiveCount')
