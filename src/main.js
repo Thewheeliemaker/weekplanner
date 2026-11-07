@@ -623,28 +623,12 @@ function blockHtml(e, dStr, size = '') {
   return `<div class="blk ${size} ${c.cls}${e.opFysiekBord ? '' : ' is-pending'}" style="${c.style}" data-id="${esc(e.id)}" data-date="${esc(dStr)}" role="button" tabindex="0">${t ? `<div class="blk-time">${esc(t)}</div>` : ''}<div class="blk-body"><div class="blk-title">${pre}${esc(e.title)}${post}</div>${meta.length ? `<div class="blk-meta">${esc(meta.join(' · '))}</div>` : ''}</div></div>`
 }
 
-// Tap opens the detail sheet; swipe left deletes (with the usual undo / recurring choice)
+// Tap (or Enter) opens the detail sheet. Horizontal swipes are reserved for changing weeks.
 function wireBlocks(root) {
   root.querySelectorAll('.blk[data-id]').forEach(el => {
     const id = el.dataset.id, dStr = el.dataset.date
-    el.addEventListener('click', () => { if (el._swiped) { el._swiped = false; return } openDetailEntry(id, el, dStr) })
+    el.addEventListener('click', () => openDetailEntry(id, el, dStr))
     el.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openDetailEntry(id, el, dStr) } })
-    if (id.startsWith('feestdag-')) return
-    let x0 = 0, y0 = 0, dx = 0, active = false
-    el.addEventListener('touchstart', ev => { x0 = ev.touches[0].clientX; y0 = ev.touches[0].clientY; dx = 0; active = false }, { passive: true })
-    el.addEventListener('touchmove', ev => {
-      const mx = ev.touches[0].clientX - x0, my = ev.touches[0].clientY - y0
-      if (!active && Math.abs(mx) > 12 && Math.abs(mx) > Math.abs(my) * 1.5 && mx < 0) active = true
-      if (active) { dx = Math.min(0, mx); el.classList.add('is-swiping'); el.style.transform = `translateX(${dx}px)` }
-    }, { passive: true })
-    el.addEventListener('touchend', ev => {
-      if (!active) return
-      ev.stopPropagation() // don't also switch weeks
-      el.classList.remove('is-swiping')
-      el._swiped = true
-      if (dx < -90) { el.classList.add('is-deleting'); setTimeout(() => { el.style.transform = ''; el.classList.remove('is-deleting'); handleEntryDeleteClick(id, dStr) }, 180) }
-      else el.style.transform = ''
-    })
   })
 }
 
@@ -914,7 +898,7 @@ function openDetailEntry(id, clickedEl, dateStr) {
   if (clashes.length) rows.push(`<div class="detail-row is-warn">${SVG.warn}<span>Overlapt met ${esc(clashes.map(o => o.title + (whoList(o).some(n => FAMILY.includes(n)) ? ' (' + whoList(o).join(' & ') + ')' : '') + ' om ' + showTimeForDay(o, dStr)).join(', '))}</span></div>`)
   if (e.isHoliday) rows.push(`<div class="detail-row">${SVG.cal}<span>Nationale feestdag, automatisch toegevoegd</span></div>`)
   else rows.push(`<div class="detail-row"><span class="detail-status-dot" style="background:${e.opFysiekBord ? 'var(--good)' : 'var(--warn-line)'}"></span><span>${e.opFysiekBord ? 'Staat op het fysieke bord' : 'Nog op het fysieke bord zetten'}</span></div>`)
-  const inner = `<div class="sheet-grip"></div><div class="detail-hero ${c.cls}" style="${c.style}"><div class="detail-who">${esc(names.join(' & ') || (e.category === 'eten' ? 'Avondeten' : 'Algemeen'))}</div><div class="detail-title">${e.isHoliday ? '🇳🇱 ' : ''}${esc(e.title)}</div><div class="detail-when">${esc(when)}</div><button type="button" class="detail-close" aria-label="Sluiten">${SVG.x}</button></div><div class="detail-rows">${rows.join('')}</div>${e.isHoliday ? '' : `<div class="detail-actions"><button type="button" class="btn btn-primary detail-edit">Bewerken</button><button type="button" class="btn btn-danger detail-delete">Verwijderen</button></div><div class="detail-hint">Tip: veeg een item naar links om het te verwijderen</div>`}`
+  const inner = `<div class="sheet-grip"></div><div class="detail-hero ${c.cls}" style="${c.style}"><div class="detail-who">${esc(names.join(' & ') || (e.category === 'eten' ? 'Avondeten' : 'Algemeen'))}</div><div class="detail-title">${e.isHoliday ? '🇳🇱 ' : ''}${esc(e.title)}</div><div class="detail-when">${esc(when)}</div><button type="button" class="detail-close" aria-label="Sluiten">${SVG.x}</button></div><div class="detail-rows">${rows.join('')}</div>${e.isHoliday ? '' : `<div class="detail-actions"><button type="button" class="btn btn-primary detail-edit">Bewerken</button><button type="button" class="btn btn-danger detail-delete">Verwijderen</button></div>`}`
 
   const inTable = clickedEl && clickedEl.closest('.week-table')
   const box = document.createElement('div')

@@ -147,7 +147,7 @@ svg { flex: none; }
 .strip-count { font-size: 0.95rem; font-weight: 600; color: var(--ink); }
 
 /* ── colour block (item) ── */
-.blk { background: var(--pc-bg); color: var(--pc-ink); border-radius: 16px; padding: 7px 11px; display: flex; gap: 10px; align-items: center; cursor: pointer; position: relative; touch-action: pan-y; transition: transform .2s ease; }
+.blk { background: var(--pc-bg); color: var(--pc-ink); border-radius: 16px; padding: 7px 11px; display: flex; gap: 10px; align-items: center; cursor: pointer; position: relative; }
 .blk.is-split { background: linear-gradient(90deg, var(--split-a) 50%, var(--split-b) 50%); }
 .blk.is-pending { outline: 2px dashed var(--warn-line); outline-offset: -2px; }
 .blk-time { font-weight: 600; font-size: 0.92rem; min-width: 42px; font-variant-numeric: tabular-nums; }
@@ -162,8 +162,6 @@ svg { flex: none; }
 .blk.lg .blk-title { font-size: 1.05rem; }
 .blk.sm { padding: 5px 10px; border-radius: 13px; }
 .blk.sm .blk-title { font-size: 0.88rem; }
-.blk.is-swiping { transition: none; }
-.blk.is-deleting { transform: translateX(-110%) !important; opacity: 0; transition: transform .2s ease, opacity .2s ease; }
 
 /* ── week toolbar ── */
 /* week header stays visible while scrolling: toolbar + filter chips (mobile) / table header (desktop) */
@@ -425,7 +423,7 @@ details[open] > .archive-toggle::before { transform: rotate(90deg); }
 .week-table-wrap.slide-left, .week-agenda.slide-left { transform: translateX(-40px); opacity: 0; }
 .week-table-wrap.slide-right, .week-agenda.slide-right { transform: translateX(40px); opacity: 0; }
 .swipe-hint { display: none; text-align: center; color: var(--ink-faint); font-size: 0.78rem; margin-top: 6px; }
-@media (prefers-reduced-motion: reduce) { .week-table-wrap, .week-agenda, .blk { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .week-table-wrap, .week-agenda { transition: none; } }
 
 /* ── mobile shell: bottom tab bar + fab ── */
 @media (max-width: 760px) {
