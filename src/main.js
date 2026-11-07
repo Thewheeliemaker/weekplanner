@@ -1448,13 +1448,17 @@ const prefWeather = $('pref-weather'), prefBirthdays = $('pref-birthdays'), pref
 prefWeather.checked = pref('showWeather', true)
 prefBirthdays.checked = pref('showBirthdays', true)
 prefDarkmode.checked = pref('darkMode', false)
-if (pref('darkMode', false)) document.documentElement.setAttribute('data-theme', 'dark')
+// Theme is an explicit choice (unchecked = light, checked = dark); it no longer follows the phone's setting
+function applyTheme(dark) {
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light')
+  const meta = document.getElementById('themeColorMeta'); if (meta) meta.content = dark ? '#1a1b1c' : '#ffffff'
+}
+applyTheme(pref('darkMode', false))
 prefWeather.addEventListener('change', () => { savePref('showWeather', prefWeather.checked); state.weather = null; renderWeek() })
 prefBirthdays.addEventListener('change', () => { savePref('showBirthdays', prefBirthdays.checked); renderWeek() })
 prefDarkmode.addEventListener('change', () => {
   savePref('darkMode', prefDarkmode.checked)
-  if (prefDarkmode.checked) document.documentElement.setAttribute('data-theme', 'dark')
-  else document.documentElement.removeAttribute('data-theme')
+  applyTheme(prefDarkmode.checked)
   renderWeek(); renderTasks()
 })
 // ── digest opt-out ──
