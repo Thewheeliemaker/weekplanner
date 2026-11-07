@@ -1,5 +1,6 @@
 import './style.css'
 import { supabase } from './supabase.js'
+import { dutchHolidays } from './holidays.js'
 
 const FAMILY = ['Siem', 'Mare', 'Merel', 'Rick']
 const COLUMNS = FAMILY.concat(['Algemeen'])
@@ -22,12 +23,18 @@ function pref(key, def) { const v = loadPrefs()[key]; return v === undefined ? d
 
 async function dbWrite(action, table, { data, id, ids, silent } = {}) {
   const password = localStorage.getItem('wp-auth')
-  const resp = await fetch('/api/data', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password, action, table, data, id, ids, silent, currentUser: state.currentUser })
-  })
-  const result = await resp.json()
+  let resp
+  try {
+    resp = await fetch('/api/data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password, action, table, data, id, ids, silent, currentUser: state.currentUser })
+    })
+  } catch {
+    setOffline(true)
+    return { error: { message: 'offline' } }
+  }
+  const result = await resp.json().catch(() => ({ error: 'Ongeldig antwoord' }))
   if (!resp.ok) return { error: { message: result.error } }
   return { data: result.data, error: null }
 }
@@ -39,6 +46,26 @@ let toastTimer = null
 function toast(msg) { toastEl.textContent = msg; toastEl.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { toastEl.hidden = true }, 3800) }
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]) }
 function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s }
+// ── offline support ──
+// Last successful data loads are kept in localStorage so the app still shows something without internet.
+function cacheSave(key, rows) { try { localStorage.setItem('wp-cache-' + key, JSON.stringify({ at: Date.now(), rows })) } catch {} }
+function cacheLoad(key) { try { return JSON.parse(localStorage.getItem('wp-cache-' + key) || 'null') } catch { return null } }
+let offlineSince = null
+function setOffline(on, cachedAt) {
+  let el = document.getElementById('offlineBanner')
+  if (!on) { if (el) el.hidden = true; offlineSince = null; return }
+  if (!el) { el = document.createElement('div'); el.id = 'offlineBanner'; el.className = 'offline-banner'; el.setAttribute('role', 'status'); document.body.prepend(el) }
+  if (cachedAt) offlineSince = cachedAt
+  const when = offlineSince ? ' Je ziet de versie van ' + new Date(offlineSince).toLocaleString('nl-NL', { weekday: 'short', hour: '2-digit', minute: '2-digit' }) + '.' : ''
+  el.textContent = 'Offline.' + when + ' Wijzigen kan weer zodra je internet hebt.'
+  el.hidden = false
+}
+window.addEventListener('offline', () => setOffline(true))
+window.addEventListener('online', () => { if (state.currentUser) { loadEntries(); loadGroceries(); loadFavorites() } })
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => {}) })
+}
+
 function focusSoon(id) { requestAnimationFrame(() => { const el = $(id); if (el) el.focus() }) }
 
 // ── snackbar (delete with undo) ──
@@ -223,20 +250,29 @@ async function loadEntries() {
     supabase.from('entries').select('*').in('type', ['wekelijks', 'jaarlijks']),
     supabase.from('entries').select('*').in('type', ['eenmalig', 'periode']).or('date.gte.' + cutoffStr + ',end_date.gte.' + cutoffStr + ',date.is.null')
   ])
-  if (recurring.error || dated.error) { toast('Kon items niet laden.'); return }
-  state.entries = (recurring.data || []).concat(dated.data || []).map(rowToEntry)
+  if (recurring.error || dated.error) {
+    const c = cacheLoad('entries')
+    if (c) { state.entries = c.rows.map(rowToEntry); setOffline(true, c.at); renderTasks(); renderWeek() }
+    else toast('Kon items niet laden.')
+    return
+  }
+  const rows = (recurring.data || []).concat(dated.data || [])
+  cacheSave('entries', rows); setOffline(false)
+  state.entries = rows.map(rowToEntry)
   renderTasks(); renderWeek()
 }
 async function loadGroceries() {
   const { data, error } = await supabase.from('boodschappen').select('*').order('created_at', { ascending: true }).limit(300)
-  if (error) { toast('Kon boodschappenlijst niet laden.'); return }
-  state.groceries = data.map(r => ({ id: r.id, naam: r.naam, afgevinkt: r.afgevinkt, createdAt: r.created_at }))
+  let rows = data
+  if (error) { const c = cacheLoad('groceries'); if (!c) { toast('Kon boodschappenlijst niet laden.'); return } rows = c.rows; setOffline(true, c.at) } else cacheSave('groceries', rows)
+  state.groceries = rows.map(r => ({ id: r.id, naam: r.naam, afgevinkt: r.afgevinkt, createdAt: r.created_at }))
   renderGroceries()
 }
 async function loadFavorites() {
   const { data, error } = await supabase.from('favorieten').select('*').order('naam', { ascending: true }).limit(100)
-  if (error) { toast('Kon favorieten niet laden.'); return }
-  state.favorites = data.map(r => ({ id: r.id, naam: r.naam, createdAt: r.created_at }))
+  let rows = data
+  if (error) { const c = cacheLoad('favorites'); if (!c) { toast('Kon favorieten niet laden.'); return } rows = c.rows } else cacheSave('favorites', rows)
+  state.favorites = rows.map(r => ({ id: r.id, naam: r.naam, createdAt: r.created_at }))
   renderFavChips(); renderFavManageList()
 }
 
@@ -339,7 +375,57 @@ function entryHasWho(e, col) { return whoList(e).includes(col) }
 
 // ── week table ──
 function isBirthday(e) { return e.type === 'jaarlijks' && e.birthYear }
-function visibleEntries() { return pref('showBirthdays', true) ? state.entries : state.entries.filter(e => !isBirthday(e)) }
+// Dutch holidays are calculated, not stored. Skipped when a stored entry with the same title+date exists.
+function holidayEntries() {
+  const days = getWeekDays(state.weekOffset)
+  const years = [...new Set([days[0].getFullYear(), days[6].getFullYear()])]
+  const out = []
+  for (const y of years) for (const h of dutchHolidays(y)) {
+    if (state.entries.some(e => e.date === h.date && e.title === h.title)) continue
+    out.push({ id: 'feestdag-' + h.date, title: h.title, who: 'Algemeen', type: 'eenmalig', date: h.date, endDate: null, time: '', note: '', category: 'bijzonder', skipDates: [], opFysiekBord: true, isHoliday: true })
+  }
+  return out
+}
+function visibleEntries() {
+  const base = pref('showBirthdays', true) ? state.entries : state.entries.filter(e => !isBirthday(e))
+  return base.concat(holidayEntries())
+}
+function findEntry(id) { return state.entries.find(e => e.id === id) || holidayEntries().find(e => e.id === id) }
+
+// ── overlap detection ──
+// Timed items (not dinner, not holidays) whose 1-hour windows overlap on the same day.
+const DEFAULT_DURATION = 60
+function toMin(t) { const [h, m] = t.split(':').map(Number); return h * 60 + m }
+function timedItemsOn(dName, dStr, list) {
+  return list.filter(e => e.category !== 'eten' && !e.isHoliday && entryMatchesDay(e, dName, dStr) && showTimeForDay(e, dStr))
+}
+function overlaps(a, b, dStr) {
+  const sa = toMin(showTimeForDay(a, dStr)), sb = toMin(showTimeForDay(b, dStr))
+  return sa < sb + DEFAULT_DURATION && sb < sa + DEFAULT_DURATION
+}
+let weekConflicts = new Map()
+function buildConflictMap(days) {
+  const map = new Map(), list = visibleEntries()
+  for (const day of days) {
+    const dName = dayNameOf(day), dStr = ymd(day)
+    const items = timedItemsOn(dName, dStr, list)
+    for (let i = 0; i < items.length; i++) for (let j = i + 1; j < items.length; j++) {
+      if (!overlaps(items[i], items[j], dStr)) continue
+      for (const [x, y] of [[items[i], items[j]], [items[j], items[i]]]) {
+        const k = x.id + '|' + dStr
+        if (!map.has(k)) map.set(k, [])
+        map.get(k).push(y)
+      }
+    }
+  }
+  return map
+}
+function conflictBadge(e, dStr) {
+  const others = weekConflicts.get(e.id + '|' + dStr)
+  if (!others || others.length === 0) return ''
+  const txt = 'Overlapt met: ' + others.map(o => (showTimeForDay(o, dStr) + ' ' + o.title + (o.who && o.who !== 'Algemeen' ? ' (' + o.who.split(',').join(' & ') + ')' : ''))).join(', ')
+  return '<span class="ci-warn" title="' + esc(txt) + '" aria-label="' + esc(txt) + '">⚠</span>'
+}
 function entryMatchesDay(e, dName, dStr) {
   if (e.skipDates && e.skipDates.indexOf(dStr) >= 0) return false
   if (e.type === 'eenmalig') return e.date === dStr
@@ -361,6 +447,7 @@ function ageForYear(birthYear, displayYear) { return birthYear ? displayYear - b
 
 function entryIconHtml(e, col) {
   if (e.type === 'jaarlijks' && e.birthYear) return '<span class="ci-icon-emoji">🎂</span>'
+  if (e.isHoliday) return '<span class="ci-icon-emoji">🇳🇱</span>'
   if (col === 'Algemeen' && e.category === 'eten') return '<svg class="ci-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v7a2 2 0 0 0 2 2v9M6 3v7M9 3v7M15 3c-1.5 0-2 2-2 4s.5 4 2 4v10"></path></svg>'
   if (col === 'Algemeen') return ''
   return ''
@@ -409,6 +496,7 @@ async function handleEntryDeleteClick(id, dStr) {
 
 function renderWeek() {
   const days = getWeekDays(state.weekOffset)
+  weekConflicts = buildConflictMap(days)
   const todayStr = ymd(new Date())
   $('weekNum').textContent = String(isoWeekNum(days[0]))
   $('weekRange').textContent = shortDate(days[0]) + ' – ' + shortDate(days[6]) + ' ' + days[6].getFullYear()
@@ -437,7 +525,7 @@ function renderWeek() {
         .sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'))
       const body = items.map(e => {
         const t = showTimeForDay(e, dStr)
-        return `<div class="ci" data-id="${esc(e.id)}" title="${esc(entryTooltip(e))}">${entryIconHtml(e, col)}<span class="ci-dot ${e.opFysiekBord ? 'on-bord' : 'pending'}" title="${e.opFysiekBord ? 'Staat op het bord' : 'Nog overzetten'}"></span>${t ? `<span class="ci-time mono">${esc(t)}</span>` : ''}<span class="ci-title">${esc(e.title)}</span>${entryAgeBadge(e, dStr)}${e.note ? '<svg class="ci-note" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>' : ''}<button class="ci-del" data-id="${esc(e.id)}" data-date="${esc(dStr)}" aria-label="Verwijderen">×</button></div>`
+        return `<div class="ci" data-id="${esc(e.id)}" title="${esc(entryTooltip(e))}">${entryIconHtml(e, col)}<span class="ci-dot ${e.opFysiekBord ? 'on-bord' : 'pending'}" title="${e.opFysiekBord ? 'Staat op het bord' : 'Nog overzetten'}"></span>${t ? `<span class="ci-time mono">${esc(t)}</span>` : ''}<span class="ci-title">${esc(e.title)}</span>${entryAgeBadge(e, dStr)}${conflictBadge(e, dStr)}${e.note ? '<svg class="ci-note" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>' : ''}${e.isHoliday ? '' : `<button class="ci-del" data-id="${esc(e.id)}" data-date="${esc(dStr)}" aria-label="Verwijderen">×</button>`}</div>`
       }).join('')
       return `<td${col === 'Algemeen' ? ' class="col-algemeen"' : ''}>${body}<button class="cell-add" data-date="${esc(dStr)}" data-dayname="${esc(dName)}" data-who="${esc(col)}">+</button></td>`
     }).join('')
@@ -490,7 +578,7 @@ function renderWeekAgenda(days, todayStr) {
           const t = showTimeForDay(e, dStr)
           const names = whoList(e)
           const chips = (e.category === 'eten' ? [] : names).map(n => chipHtml(n)).join('')
-          return `<li class="agenda-item" data-id="${esc(e.id)}" title="${esc(entryTooltip(e))}">${entryIconHtml(e, names[0])}${chips}${t ? `<span class="agenda-time mono">${esc(t)}</span>` : ''}<span class="agenda-title">${esc(e.title)}</span>${entryAgeBadge(e, dStr)}${e.note ? '<svg class="ci-note" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>' : ''}<span class="ci-dot ${e.opFysiekBord ? 'on-bord' : 'pending'}"></span><button class="agenda-del" data-id="${esc(e.id)}" data-date="${esc(dStr)}" aria-label="Verwijderen">×</button></li>`
+          return `<li class="agenda-item" data-id="${esc(e.id)}" title="${esc(entryTooltip(e))}">${entryIconHtml(e, names[0])}${chips}${t ? `<span class="agenda-time mono">${esc(t)}</span>` : ''}<span class="agenda-title">${esc(e.title)}</span>${entryAgeBadge(e, dStr)}${conflictBadge(e, dStr)}${e.note ? '<svg class="ci-note" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>' : ''}<span class="ci-dot ${e.opFysiekBord ? 'on-bord' : 'pending'}"></span>${e.isHoliday ? '' : `<button class="agenda-del" data-id="${esc(e.id)}" data-date="${esc(dStr)}" aria-label="Verwijderen">×</button>`}</li>`
         }).join('')
     const wChip = state.weather ? weatherChipHtml(dStr, state.weather) : ''
     return `<div class="agenda-day${isToday ? ' is-today' : ''}"><div class="agenda-day-head"><span class="agenda-day-name">${DAY_LABELS[dName]}</span><span class="agenda-day-date mono">${shortDate(day)}</span>${wChip}<button class="agenda-day-add" data-date="${esc(dStr)}" data-dayname="${esc(dName)}" aria-label="Item toevoegen">+</button></div><ul class="agenda-items">${itemsHtml}</ul></div>`
@@ -616,7 +704,7 @@ function positionPopover(pop, anchor) {
 }
 
 function openDetailEntry(id, clickedEl, dateStr) {
-  const e = state.entries.find(x => x.id === id)
+  const e = findEntry(id)
   if (!e) return
   const wasOpen = state.detailId === id
   closeInlineDetail()
@@ -637,8 +725,9 @@ function openDetailEntry(id, clickedEl, dateStr) {
     : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M18 15l-6-6-6 6"/></svg>'
   const div = document.createElement('div')
   div.className = inTable ? 'detail-popover' : 'detail-inline'
-  div.innerHTML = `<div class="detail-popover-inner"><div class="detail-popover-head"><strong>${esc(e.title)}</strong><button class="detail-popover-close" aria-label="Sluiten">${closeIcon}</button></div><div class="detail-popover-body">${who}<div class="detail-muted"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;vertical-align:-2px;margin-right:3px;opacity:0.6"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>${esc(sched)}</div>${note}${bday}</div><div class="detail-popover-actions"><button class="btn btn-primary btn-sm detail-popover-edit" data-id="${esc(e.id)}">Bewerken</button><button class="btn btn-ghost btn-sm detail-popover-delete" data-id="${esc(e.id)}" style="color:var(--danger)">Verwijderen</button></div></div>`
+  div.innerHTML = `<div class="detail-popover-inner"><div class="detail-popover-head"><strong>${esc(e.title)}</strong><button class="detail-popover-close" aria-label="Sluiten">${closeIcon}</button></div><div class="detail-popover-body">${who}<div class="detail-muted"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;vertical-align:-2px;margin-right:3px;opacity:0.6"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>${esc(sched)}</div>${note}${bday}</div><div class="detail-popover-actions"${e.isHoliday ? ' hidden' : ''}><button class="btn btn-primary btn-sm detail-popover-edit" data-id="${esc(e.id)}">Bewerken</button><button class="btn btn-ghost btn-sm detail-popover-delete" data-id="${esc(e.id)}" style="color:var(--danger)">Verwijderen</button></div></div>`
   div.querySelector('.detail-popover-close').addEventListener('click', () => closeInlineDetail())
+  if (e.isHoliday) div.querySelector('.detail-popover-body').insertAdjacentHTML('beforeend', '<div class="detail-muted">Nationale feestdag (automatisch)</div>')
   div.querySelector('.detail-popover-edit').addEventListener('click', (ev) => { ev.stopPropagation(); closeInlineDetail(); openEditEntry(e.id) })
   div.querySelector('.detail-popover-delete').addEventListener('click', (ev) => { ev.stopPropagation(); closeInlineDetail(); handleEntryDeleteClick(e.id, dateStr || ymd(new Date())) })
   _detailOutsideHandler = () => closeInlineDetail()
@@ -798,6 +887,24 @@ function syncEndDateMin() {
 }
 $('f-date').addEventListener('change', syncEndDateMin)
 
+// First date (from today, within 8 weeks) on which a new/edited item would overlap with existing timed items
+function findClashForNew({ type, weekday, date, endDate, time, editId }) {
+  const candidate = { id: '__new__', type, weekday, date, endDate, time, skipDates: [], category: null }
+  const list = visibleEntries().filter(e => e.id !== editId)
+  const dates = []
+  if (type === 'wekelijks') {
+    const start = new Date(); start.setHours(0, 0, 0, 0)
+    for (let i = 0; i < 56; i++) { const d = new Date(start); d.setDate(start.getDate() + i); dates.push(d) }
+  } else if (date) dates.push(new Date(date + 'T12:00:00'))
+  for (const d of dates) {
+    const dName = dayNameOf(d), dStr = ymd(d)
+    if (!entryMatchesDay(candidate, dName, dStr) || !showTimeForDay(candidate, dStr)) continue
+    const items = timedItemsOn(dName, dStr, list).filter(o => overlaps(candidate, o, dStr))
+    if (items.length) return { date: dStr, items }
+  }
+  return null
+}
+
 $('itemForm').addEventListener('submit', async (ev) => {
   ev.preventDefault()
   const title = $('f-title').value.trim(), who = whoHidden.value, time = $('f-time').value
@@ -809,6 +916,15 @@ $('itemForm').addEventListener('submit', async (ev) => {
   if ((state.addType === 'eenmalig' || state.addType === 'jaarlijks') && !date) { toast('Kies een datum.'); return }
   if (state.addType === 'periode' && (!date || !endDate)) { toast('Kies een begin- en einddatum.'); return }
   if (state.addType === 'periode' && date > endDate) { toast('De einddatum ligt voor de begindatum.'); return }
+
+  if (time) {
+    const clash = findClashForNew({ type: state.addType, weekday, date, endDate, time, editId: state.editId })
+    if (clash) {
+      const others = clash.items.map(o => '"' + o.title + '"' + (o.who && o.who !== 'Algemeen' ? ' (' + o.who.split(',').join(' & ') + ')' : '') + ' om ' + showTimeForDay(o, clash.date)).join(', ')
+      const choice = await showChoiceModal('Overlap', 'Op ' + fmtDateFull(clash.date) + ' rond ' + time + ' staat ook: ' + others + '.', [{ id: 'save', label: 'Toch opslaan', variant: 'btn-primary' }])
+      if (choice !== 'save') return
+    }
+  }
 
   const submitBtn = $('f-submit'); submitBtn.disabled = true
   const row = {
@@ -1031,32 +1147,7 @@ if (window.matchMedia) {
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { renderTasks(); renderWeek() })
 }
 
-// ── reminders (browser notifications) ──
-const firedReminders = new Set()
-function checkReminders() {
-  if (!('Notification' in window) || Notification.permission !== 'granted') return
-  const now = new Date()
-  const todayStr = ymd(now), nowMinutes = now.getHours() * 60 + now.getMinutes()
-  const dName = dayNameOf(now)
-  state.entries.forEach(e => {
-    if (e.reminderMinutes == null || !e.time) return
-    if (!entryMatchesDay(e, dName, todayStr)) return
-    const [h, m] = e.time.split(':').map(Number)
-    const eventMinutes = h * 60 + m
-    const fireAt = eventMinutes - e.reminderMinutes
-    if (nowMinutes === fireAt && !firedReminders.has(e.id + todayStr)) {
-      firedReminders.add(e.id + todayStr)
-      const label = e.reminderMinutes === 0 ? 'Nu' : e.reminderMinutes < 60 ? e.reminderMinutes + ' min' : e.reminderMinutes === 60 ? '1 uur' : '1 dag'
-      new Notification('Weekplanner', { body: (label === 'Nu' ? '' : label + ': ') + e.title + ' (' + e.who + ') om ' + e.time, icon: '📋' })
-    }
-  })
-}
-function initReminders() {
-  if (!('Notification' in window)) return
-  if (Notification.permission === 'default') Notification.requestPermission()
-  setInterval(checkReminders, 60000)
-  checkReminders()
-}
+// Reminders are sent as push notifications by the server (/api/tick via Supabase pg_cron).
 
 // ── login ──
 const loginOverlay = $('loginOverlay')
@@ -1275,6 +1366,7 @@ $('btnCopyCalendar').addEventListener('click', () => {
 $('btnLogout').addEventListener('click', async () => {
   try { await supabase.auth.signOut() } catch {}
   localStorage.removeItem('wp-auth'); localStorage.removeItem('wp-user'); localStorage.removeItem('wp-cal-token')
+  ;['entries', 'groceries', 'favorites'].forEach(k => localStorage.removeItem('wp-cache-' + k))
   window.location.reload()
 })
 
@@ -1285,7 +1377,6 @@ async function init() {
   renderWeek()
   loadDigestPref()
   loadDigestTime()
-  initReminders()
   showPushPrompt()
   if (state.currentUser) {
     setWho(state.currentUser)
@@ -1312,12 +1403,41 @@ async function init() {
 ;(async function boot() {
   const savedPass = localStorage.getItem('wp-auth')
   const savedUser = localStorage.getItem('wp-user')
-  if (savedPass && savedUser) {
-    try {
-      const resp = await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: savedPass }) })
-      const ct = resp.headers.get('content-type') || ''
-      if (!ct.includes('json')) return skipLogin(savedUser)
-      if (resp.ok) { saveAuthResponse(await resp.json().catch(() => ({}))); return skipLogin(savedUser, savedPass) }
-    } catch {}
+  // The login overlay starts hidden (see index.html) so returning users never see it flash.
+  if (!savedPass || !savedUser) { loginOverlay.hidden = false; return }
+
+  let hasSession = false
+  try { const { data } = await supabase.auth.getSession(); hasSession = !!data.session } catch {}
+
+  if (hasSession) {
+    // Open right away; re-check the password in the background (e.g. after a password change)
+    skipLogin(savedUser)
+    verifySavedLogin(savedPass)
+    return
+  }
+
+  try {
+    const resp = await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: savedPass }) })
+    const ct = resp.headers.get('content-type') || ''
+    if (!ct.includes('json')) return skipLogin(savedUser)
+    if (resp.ok) { saveAuthResponse(await resp.json().catch(() => ({}))); return skipLogin(savedUser, savedPass) }
+    loginOverlay.hidden = false
+  } catch {
+    // No connection: open with cached data
+    return skipLogin(savedUser)
   }
 })()
+
+async function verifySavedLogin(password) {
+  try {
+    const resp = await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password }) })
+    if (!(resp.headers.get('content-type') || '').includes('json')) return
+    if (resp.ok) { saveAuthResponse(await resp.json().catch(() => ({}))); return }
+    if (resp.status === 401) {
+      // Saved password no longer valid: sign out and show the login screen
+      try { await supabase.auth.signOut() } catch {}
+      localStorage.removeItem('wp-auth')
+      window.location.reload()
+    }
+  } catch {}
+}

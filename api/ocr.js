@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { checkPassword } from './_lib/auth.js'
+import { amsterdamNow } from './_lib/time.js'
 
 export const config = { api: { bodyParser: { sizeLimit: '5mb' } } }
 
@@ -20,9 +21,10 @@ export default async function handler(req, res) {
   if (count >= 60) return res.status(429).json({ error: 'Rate limit: max 60 AI-verzoeken per uur' })
   await supabaseForLimit.from('api_usage').insert({ endpoint: 'ocr' })
 
-  const today = new Date().toISOString().slice(0, 10)
-  const year = new Date().getFullYear()
-  const dayOfWeek = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'][new Date().getDay()]
+  const now = amsterdamNow()
+  const today = now.date
+  const year = now.year
+  const dayOfWeek = now.weekday
 
   const prompt = `Je bent een assistent die werkroosters leest van screenshots. Vandaag is ${today} (${dayOfWeek}), jaar ${year}.
 ${who ? 'Dit rooster is van ' + who + '.' : ''}

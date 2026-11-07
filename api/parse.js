@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { checkPassword } from './_lib/auth.js'
+import { amsterdamNow } from './_lib/time.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
@@ -17,8 +18,9 @@ export default async function handler(req, res) {
   if (count >= 60) return res.status(429).json({ error: 'Rate limit: max 60 AI-verzoeken per uur' })
   await supabase.from('api_usage').insert({ endpoint: 'parse' })
 
-  const today = new Date().toISOString().slice(0, 10)
-  const dayOfWeek = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'][new Date().getDay()]
+  const now = amsterdamNow()
+  const today = now.date
+  const dayOfWeek = now.weekday
 
   const prompt = `Je bent een parser voor een gezinsplanner. Vandaag is ${today} (${dayOfWeek}).
 

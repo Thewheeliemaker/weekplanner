@@ -392,3 +392,9 @@ details[open] > .archive-toggle::before { transform: rotate(90deg); }
 .location-results li:hover { background: var(--accent-soft); }
 .location-results li .loc-sub { color: var(--ink-soft); font-size: 0.78rem; }
 .location-current { font-size: 0.82rem; color: var(--ink-soft); margin-top: 6px; }
+
+/* overlap warning */
+.ci-warn { flex: none; font-size: 0.72rem; line-height: 1; color: var(--warn); background: var(--warn-soft); border-radius: 4px; padding: 1px 3px; margin-left: 2px; cursor: help; }
+
+/* offline banner */
+.offline-banner { position: sticky; top: 0; z-index: 30; background: var(--warn-soft); color: var(--ink); border-bottom: 1px solid var(--border); font-size: 0.82rem; padding: 6px 16px; text-align: center; }
