@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { checkPassword } from './_lib/auth.js'
 
 function getSupabase() {
   return createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
@@ -46,7 +47,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'GET or POST' })
 
   const { password, action, backupId } = req.body || {}
-  if (password !== process.env.APP_PASSWORD) return res.status(401).json({ error: 'Unauthorized' })
+  if (!checkPassword(password)) return res.status(401).json({ error: 'Unauthorized' })
 
   if (action === 'list') {
     const { data: backups } = await supabase

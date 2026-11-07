@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import webpush from 'web-push'
+import { checkPassword } from './_lib/auth.js'
 
 const DAY_NAMES = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag']
 const MONTH_NAMES = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december']
@@ -107,7 +108,7 @@ function formatEntry(e) {
 export default async function handler(req, res) {
   if (req.method === 'POST') {
     const { password } = req.body || {}
-    if (password !== process.env.APP_PASSWORD) return res.status(401).json({ error: 'Unauthorized' })
+    if (!checkPassword(password)) return res.status(401).json({ error: 'Unauthorized' })
   } else if (req.method === 'GET') {
     const cronSecret = process.env.CRON_SECRET
     if (cronSecret) {

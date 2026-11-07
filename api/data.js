@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import webpush from 'web-push'
+import { checkPassword } from './_lib/auth.js'
 
 const ALLOWED_TABLES = ['entries', 'boodschappen', 'favorieten', 'photos', 'settings']
 
@@ -51,7 +52,7 @@ export default async function handler(req, res) {
 
   const { password, action, table, data, id, ids, currentUser, silent } = req.body || {}
 
-  if (password !== process.env.APP_PASSWORD) return res.status(401).json({ error: 'Unauthorized' })
+  if (!checkPassword(password)) return res.status(401).json({ error: 'Unauthorized' })
   if (!ALLOWED_TABLES.includes(table)) return res.status(400).json({ error: 'Invalid table' })
 
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY

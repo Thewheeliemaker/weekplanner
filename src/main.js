@@ -1073,7 +1073,28 @@ document.querySelectorAll('.login-member').forEach(btn => {
   })
 })
 
-function skipLogin(user) { state.currentUser = user; document.documentElement.dataset.user = user; loginOverlay.hidden = true; init() }
+// Shared family account in Supabase Auth. Reads from the database require this session (RLS: authenticated only).
+const FAMILY_EMAIL = 'gezin@weekplanner.app'
+async function ensureDbSession(password) {
+  try {
+    const { data } = await supabase.auth.getSession()
+    if (data.session) return true
+    if (!password) return false
+    const { error } = await supabase.auth.signInWithPassword({ email: FAMILY_EMAIL, password })
+    if (error) console.warn('Supabase-login mislukt:', error.message)
+    return !error
+  } catch { return false }
+}
+
+function saveAuthResponse(json) {
+  try { if (json && json.calendarToken) localStorage.setItem('wp-cal-token', json.calendarToken) } catch {}
+}
+
+async function skipLogin(user, password) {
+  state.currentUser = user; document.documentElement.dataset.user = user
+  await ensureDbSession(password)
+  loginOverlay.hidden = true; init()
+}
 
 async function tryLogin() {
   const pass = $('loginPass').value
@@ -1082,12 +1103,17 @@ async function tryLogin() {
   try {
     const resp = await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pass }) })
     const ct = resp.headers.get('content-type') || ''
-    if (!ct.includes('json')) { skipLogin(selectedMember); return }
+    if (!ct.includes('json')) { await skipLogin(selectedMember); return }
+    const json = await resp.json().catch(() => ({}))
     if (resp.ok) {
       localStorage.setItem('wp-auth', pass)
       localStorage.setItem('wp-user', selectedMember)
-      skipLogin(selectedMember)
-    } else { $('loginError').hidden = false }
+      saveAuthResponse(json)
+      await skipLogin(selectedMember, pass)
+    } else {
+      $('loginError').textContent = resp.status === 429 ? (json.error || 'Te veel pogingen.') : 'Verkeerd wachtwoord'
+      $('loginError').hidden = false
+    }
   } catch { $('loginError').hidden = false }
   $('loginSubmit').disabled = false; $('loginSubmit').textContent = 'Open'
 }
@@ -1182,7 +1208,6 @@ async function loadDigestTime() {
     if (data?.value) prefDigestTime.value = data.value
   } catch {}
 }
-loadDigestTime()
 prefDigestTime.addEventListener('change', async () => {
   const { error } = await dbWrite('upsert', 'settings', { data: { id: 'digest_time', value: prefDigestTime.value } })
   if (error) { toast('Opslaan mislukt.'); return }
@@ -1242,10 +1267,16 @@ $('btnTestDigest').addEventListener('click', () => {
 })
 
 $('btnCopyCalendar').addEventListener('click', () => {
-  const url = window.location.origin + '/api/calendar'
+  const token = localStorage.getItem('wp-cal-token')
+  if (!token) { toast('Agenda-link niet beschikbaar. Log opnieuw in.'); return }
+  const url = window.location.origin + '/api/calendar?token=' + encodeURIComponent(token)
   navigator.clipboard.writeText(url).then(() => toast('Agenda-link gekopieerd!')).catch(() => toast('Kopiëren mislukt.'))
 })
-$('btnLogout').addEventListener('click', () => { localStorage.removeItem('wp-auth'); localStorage.removeItem('wp-user'); window.location.reload() })
+$('btnLogout').addEventListener('click', async () => {
+  try { await supabase.auth.signOut() } catch {}
+  localStorage.removeItem('wp-auth'); localStorage.removeItem('wp-user'); localStorage.removeItem('wp-cal-token')
+  window.location.reload()
+})
 
 // ── init ──
 async function init() {
@@ -1253,6 +1284,7 @@ async function init() {
   subscribeRealtime()
   renderWeek()
   loadDigestPref()
+  loadDigestTime()
   initReminders()
   showPushPrompt()
   if (state.currentUser) {
@@ -1284,7 +1316,8 @@ async function init() {
     try {
       const resp = await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: savedPass }) })
       const ct = resp.headers.get('content-type') || ''
-      if (!ct.includes('json') || resp.ok) return skipLogin(savedUser)
+      if (!ct.includes('json')) return skipLogin(savedUser)
+      if (resp.ok) { saveAuthResponse(await resp.json().catch(() => ({}))); return skipLogin(savedUser, savedPass) }
     } catch {}
   }
 })()

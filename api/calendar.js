@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { calendarToken, tokensEqual } from './_lib/auth.js'
 
 const DAY_TO_RRULE = { maandag: 'MO', dinsdag: 'TU', woensdag: 'WE', donderdag: 'TH', vrijdag: 'FR', zaterdag: 'SA', zondag: 'SU' }
 const DAY_IDX = { maandag: 1, dinsdag: 2, woensdag: 3, donderdag: 4, vrijdag: 5, zaterdag: 6, zondag: 0 }
@@ -61,10 +62,13 @@ function buildICS(entries) {
 }
 
 export default async function handler(req, res) {
-  const token = process.env.CALENDAR_TOKEN
-  if (token && req.query.token !== token) return res.status(403).send('Forbidden')
+  const token = calendarToken()
+  if (!token) return res.status(500).send('Calendar token not configured')
+  if (!tokensEqual(req.query.token, token)) return res.status(403).send('Forbidden')
 
-  const supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY)
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!serviceKey) return res.status(500).send('Service key not configured')
+  const supabase = createClient(process.env.VITE_SUPABASE_URL, serviceKey)
   const { data, error } = await supabase.from('entries').select('*').order('created_at', { ascending: true }).limit(800)
   if (error) return res.status(500).json({ error: 'Database query failed' })
 
@@ -72,6 +76,6 @@ export default async function handler(req, res) {
   const ics = buildICS(filtered)
   res.setHeader('Content-Type', 'text/calendar; charset=utf-8')
   res.setHeader('Content-Disposition', 'inline; filename="weekplanner.ics"')
-  res.setHeader('Cache-Control', 'public, max-age=300')
+  res.setHeader('Cache-Control', 'private, max-age=300')
   res.status(200).send(ics)
 }
