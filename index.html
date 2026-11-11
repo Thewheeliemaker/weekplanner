@@ -80,110 +80,10 @@
             <div class="who-filter" id="whoFilter" role="group" aria-label="Filter op persoon"></div>
             </div>
 
-            <div class="add-panel" id="itemPanel" hidden>
-              <div id="quickAddBox">
-                <div class="panel-head-row"><h3>Nieuw item</h3><button type="button" class="icon-btn" id="quick-cancel" aria-label="Sluiten"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"></path></svg></button></div>
-                <p class="panel-sub">Typ in eigen woorden wat je wilt toevoegen.</p>
-                <textarea id="quick-text" rows="2" placeholder="Bijv. Rick elke dinsdag tennisles 20:50 tot eind oktober"></textarea>
-                <div class="form-actions" style="margin-top:8px;">
-                  <button type="button" class="btn btn-primary btn-sm" id="quick-parse">Interpreteer</button>
-                  <button type="button" class="btn btn-ghost" id="quick-manual">Handmatig invullen</button>
-                </div>
-              </div>
-
-              <form id="itemForm" class="add-form" hidden>
-                <p class="ai-hint" id="quick-hint" hidden></p>
-                <div class="field-row-3">
-                  <div class="field"><label for="f-title">Wat</label><input type="text" id="f-title" placeholder="Bijv. Tennisles" required maxlength="80" /></div>
-                  <div class="field">
-                    <label>Wie</label>
-                    <div class="who-tags" id="f-who-tags">
-                      <button type="button" class="who-tag p-Siem" data-who="Siem">Siem</button>
-                      <button type="button" class="who-tag p-Mare" data-who="Mare">Mare</button>
-                      <button type="button" class="who-tag p-Merel" data-who="Merel">Merel</button>
-                      <button type="button" class="who-tag p-Rick" data-who="Rick">Rick</button>
-                      <button type="button" class="who-tag p-Algemeen" data-who="Algemeen">Algemeen</button>
-                    </div>
-                    <input type="hidden" id="f-who" />
-                  </div>
-                  <div class="field"><label for="f-time">Tijd</label><div class="time-picker" id="f-time-wrap"><select id="f-time-h"><option value="">--</option></select><span class="time-sep">:</span><select id="f-time-m"><option value="">--</option></select></div><input type="hidden" id="f-time" /></div>
-                </div>
-                <div class="field" id="categoryField" hidden>
-                  <label for="f-category">Soort (Algemeen)</label>
-                  <select id="f-category">
-                    <option value="bijzonder">Bijzonder (feestdag, verjaardag, …)</option>
-                    <option value="eten">Wat we eten</option>
-                  </select>
-                </div>
-                <div class="field">
-                  <label>Type</label>
-                  <div class="type-toggle" role="group" aria-label="Type afspraak">
-                    <button type="button" id="typeWeekly" class="is-active">Wekelijks</button>
-                    <button type="button" id="typeYearly">Jaarlijks</button>
-                    <button type="button" id="typeOnce">Eenmalig</button>
-                    <button type="button" id="typePeriod">Periode</button>
-                  </div>
-                </div>
-                <div class="field" id="weekdayField">
-                  <label for="f-weekday">Dag</label>
-                  <select id="f-weekday">
-                    <option value="maandag">Maandag</option><option value="dinsdag">Dinsdag</option><option value="woensdag">Woensdag</option>
-                    <option value="donderdag">Donderdag</option><option value="vrijdag">Vrijdag</option><option value="zaterdag">Zaterdag</option><option value="zondag">Zondag</option>
-                  </select>
-                </div>
-                <div class="date-fields" id="dateRow" hidden>
-                  <div class="field" id="dateField">
-                    <label for="f-date" id="dateFieldLabel">Datum</label>
-                    <input type="date" id="f-date" />
-                    <p class="ai-hint" id="dateFieldHint" hidden style="margin-top:2px;">Alleen dag en maand tellen mee — dit komt jaarlijks terug.</p>
-                  </div>
-                  <div class="field" id="endDateField" hidden>
-                    <label for="f-enddate" id="endDateFieldLabel">Tot en met</label>
-                    <input type="date" id="f-enddate" />
-                  </div>
-                </div>
-                <div class="field" id="birthYearField" hidden>
-                  <label for="f-birthyear">Geboortejaar (optioneel)</label>
-                  <input type="number" id="f-birthyear" min="1900" max="2030" placeholder="Bijv. 1985" />
-                </div>
-                <div class="field"><label for="f-note">Notitie (optioneel)</label><textarea id="f-note" maxlength="200" placeholder="Extra info"></textarea></div>
-                <div class="field"><label for="f-reminder">Herinnering (optioneel)</label><select id="f-reminder"><option value="">Geen</option><option value="0">Op het moment zelf</option><option value="15">15 minuten van tevoren</option><option value="30">30 minuten van tevoren</option><option value="60">1 uur van tevoren</option><option value="1440">1 dag van tevoren</option></select></div>
-                <div class="form-actions">
-                  <button type="submit" class="btn btn-primary" id="f-submit">Toevoegen</button>
-                  <button type="button" class="btn btn-ghost" id="f-back">Terug</button>
-                  <button type="button" class="btn btn-ghost" id="f-cancel">Annuleren</button>
-                </div>
-              </form>
-            </div>
-
-            <div class="add-panel" id="groceryPanel" hidden>
-              <h3>Boodschap toevoegen</h3>
-              <form id="groceryQuickForm" class="grocery-quick-form">
-                <input type="text" id="gq-input" placeholder="Bijv. Melk" required maxlength="60" />
-                <button type="submit" class="btn btn-primary btn-sm">Toevoegen</button>
-                <button type="button" class="btn btn-ghost btn-sm" id="gq-cancel">Sluiten</button>
-              </form>
-            </div>
-
-            <div class="add-panel" id="dinnerPanel" hidden>
-              <h3>Avondeten toevoegen</h3>
-              <form id="dinnerQuickForm" class="add-form">
-                <div class="field-row">
-                  <div class="field"><label for="d-title">Wat eten we</label><input type="text" id="d-title" placeholder="Bijv. Pasta bolognese" required maxlength="80" /></div>
-                  <div class="field"><label for="d-date">Datum</label><input type="date" id="d-date" required /></div>
-                </div>
-                <div class="field"><label for="d-note">Notitie (optioneel)</label><textarea id="d-note" maxlength="200" placeholder="Bijv. recept of boodschappen"></textarea></div>
-                <div class="form-actions">
-                  <button type="submit" class="btn btn-primary btn-sm">Toevoegen</button>
-                  <button type="button" class="btn btn-ghost btn-sm" id="d-cancel">Sluiten</button>
-                </div>
-              </form>
-            </div>
-
             <div class="week-table-wrap"><table class="week-table" id="weekTable"></table></div>
-            <div class="status-legend"><span class="legend-item"><span class="legend-dash"></span> Nog op het fysieke bord zetten</span></div>
+            <div class="status-legend"><span class="legend-item"><span class="legend-dot"></span> Nog op het fysieke bord zetten</span></div>
             <div class="week-agenda" id="weekAgenda"></div>
-            <div class="agenda-legend">Gestippelde rand = nog op het fysieke bord zetten · tik op een item voor details</div>
+            <div class="agenda-legend"><span class="legend-dot"></span> nog op het fysieke bord zetten · tik op een item voor details</div>
             <div class="swipe-hint" id="swipeHint">← swipe voor andere week →</div>
           </div>
         </section>
@@ -308,6 +208,103 @@
         </div>
         <p class="login-error" id="loginError" hidden>Verkeerd wachtwoord</p>
       </div>
+    </div>
+
+    <!-- add/edit forms open as a sheet over the current screen (bottom sheet on mobile, dialog on desktop) -->
+    <div class="form-backdrop" id="formBackdrop" hidden></div>
+    <div class="add-panel form-sheet" id="itemPanel" role="dialog" aria-modal="true" aria-labelledby="itemPanelTitle" hidden>
+      <div class="sheet-grip"></div>
+      <div class="panel-head-row"><h3 id="itemPanelTitle">Nieuwe afspraak</h3><button type="button" class="icon-btn" id="quick-cancel" aria-label="Sluiten"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"></path></svg></button></div>
+      <div id="quickAddBox">
+        <p class="panel-sub">Typ in eigen woorden wat je wilt toevoegen, of vul het zelf in.</p>
+        <textarea id="quick-text" rows="2" placeholder="Bijv. Rick elke dinsdag tennisles 20:50 tot eind oktober"></textarea>
+        <div class="form-actions" style="margin-top:10px;">
+          <button type="button" class="btn btn-primary" id="quick-parse">Interpreteer</button>
+          <button type="button" class="btn btn-ghost" id="quick-manual">Zelf invullen</button>
+        </div>
+      </div>
+
+      <form id="itemForm" class="add-form" hidden>
+        <p class="ai-hint" id="quick-hint" hidden></p>
+        <div class="field"><label for="f-title">Wat</label><input type="text" id="f-title" placeholder="Bijv. Tandarts" required maxlength="80" /></div>
+        <div class="field">
+          <label>Wie</label>
+          <div class="who-tags" id="f-who-tags">
+                      <button type="button" class="who-tag p-Siem" data-who="Siem">Siem</button>
+                      <button type="button" class="who-tag p-Mare" data-who="Mare">Mare</button>
+                      <button type="button" class="who-tag p-Merel" data-who="Merel">Merel</button>
+                      <button type="button" class="who-tag p-Rick" data-who="Rick">Rick</button>
+                      <button type="button" class="who-tag p-Algemeen" data-who="Algemeen">Algemeen</button>
+                    </div>
+          <input type="hidden" id="f-who" />
+        </div>
+        <div class="field">
+          <label>Hoe vaak</label>
+          <div class="type-toggle" role="group" aria-label="Hoe vaak">
+            <button type="button" id="typeOnce" class="is-active">Eenmalig</button>
+            <button type="button" id="typeWeekly">Wekelijks</button>
+            <button type="button" id="typePeriod">Periode</button>
+            <button type="button" id="typeYearly">Jaarlijks</button>
+          </div>
+        </div>
+        <div class="field" id="weekdayField" hidden>
+          <label for="f-weekday">Dag</label>
+          <select id="f-weekday">
+                    <option value="maandag">Maandag</option><option value="dinsdag">Dinsdag</option><option value="woensdag">Woensdag</option>
+                    <option value="donderdag">Donderdag</option><option value="vrijdag">Vrijdag</option><option value="zaterdag">Zaterdag</option><option value="zondag">Zondag</option>
+                  </select>
+        </div>
+        <div class="date-fields" id="dateRow">
+          <div class="field" id="dateField">
+            <label for="f-date" id="dateFieldLabel">Datum</label>
+            <input type="date" id="f-date" />
+            <p class="ai-hint" id="dateFieldHint" hidden style="margin-top:2px;">Alleen dag en maand tellen mee — dit komt jaarlijks terug.</p>
+          </div>
+          <div class="field" id="endDateField" hidden>
+            <label for="f-enddate" id="endDateFieldLabel">Tot en met</label>
+            <input type="date" id="f-enddate" />
+          </div>
+        </div>
+        <div class="field"><label for="f-time">Tijd (optioneel)</label><div class="time-picker" id="f-time-wrap"><select id="f-time-h" aria-label="Uur"><option value="">--</option></select><span class="time-sep">:</span><select id="f-time-m" aria-label="Minuten"><option value="">--</option></select></div><input type="hidden" id="f-time" /></div>
+        <div class="field" id="birthYearField" hidden>
+          <label for="f-birthyear">Geboortejaar (optioneel)</label>
+          <input type="number" id="f-birthyear" min="1900" max="2030" placeholder="Bijv. 1985" />
+        </div>
+        <div class="field" id="categoryField" hidden>
+          <label for="f-category">Soort</label>
+          <select id="f-category">
+                    <option value="bijzonder">Bijzonder (feestdag, verjaardag, …)</option>
+                    <option value="eten">Wat we eten</option>
+                  </select>
+        </div>
+        <div class="field"><label for="f-note">Notitie (optioneel)</label><textarea id="f-note" maxlength="200" placeholder="Extra info"></textarea></div>
+        <div class="field"><label for="f-reminder">Herinnering (optioneel)</label><select id="f-reminder"><option value="">Geen</option><option value="0">Op het moment zelf</option><option value="15">15 minuten van tevoren</option><option value="30">30 minuten van tevoren</option><option value="60">1 uur van tevoren</option><option value="1440">1 dag van tevoren</option></select></div>
+        <div class="form-actions sheet-actions">
+          <button type="submit" class="btn btn-primary" id="f-submit">Toevoegen</button>
+          <button type="button" class="btn btn-ghost" id="f-back">Terug</button>
+          <button type="button" class="btn btn-ghost" id="f-cancel">Annuleren</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="add-panel form-sheet" id="groceryPanel" role="dialog" aria-modal="true" aria-label="Boodschap toevoegen" hidden>
+      <div class="sheet-grip"></div>
+      <div class="panel-head-row"><h3>Boodschap toevoegen</h3><button type="button" class="icon-btn" id="gq-cancel" aria-label="Sluiten"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"></path></svg></button></div>
+      <form id="groceryQuickForm" class="grocery-quick-form">
+        <input type="text" id="gq-input" placeholder="Bijv. Melk" required maxlength="60" />
+        <button type="submit" class="btn btn-primary">Toevoegen</button>
+      </form>
+    </div>
+
+    <div class="add-panel form-sheet" id="dinnerPanel" role="dialog" aria-modal="true" aria-label="Avondeten toevoegen" hidden>
+      <div class="sheet-grip"></div>
+      <div class="panel-head-row"><h3>Avondeten</h3><button type="button" class="icon-btn" id="d-cancel" aria-label="Sluiten"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"></path></svg></button></div>
+      <form id="dinnerQuickForm" class="add-form">
+        <div class="field"><label for="d-title">Wat eten we</label><input type="text" id="d-title" placeholder="Bijv. Pasta bolognese" required maxlength="80" /></div>
+        <div class="field"><label for="d-date">Datum</label><input type="date" id="d-date" required /></div>
+        <div class="field"><label for="d-note">Notitie (optioneel)</label><textarea id="d-note" maxlength="200" placeholder="Bijv. recept of boodschappen"></textarea></div>
+        <div class="form-actions sheet-actions"><button type="submit" class="btn btn-primary">Toevoegen</button></div>
+      </form>
     </div>
 
     <button type="button" class="fab" id="fab" aria-label="Toevoegen" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></button>

@@ -8,7 +8,7 @@ const DAY_ORDER = ['maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'za
 const DAY_LABELS = { maandag: 'Maandag', dinsdag: 'Dinsdag', woensdag: 'Woensdag', donderdag: 'Donderdag', vrijdag: 'Vrijdag', zaterdag: 'Zaterdag', zondag: 'Zondag' }
 const DAY_ABBR = { maandag: 'Ma', dinsdag: 'Di', woensdag: 'Wo', donderdag: 'Do', vrijdag: 'Vr', zaterdag: 'Za', zondag: 'Zo' }
 
-const state = { entries: [], groceries: [], favorites: [], addType: 'wekelijks', weekOffset: 0, filterWho: null, currentUser: null, addForDate: null, editId: null, detailId: null, weather: null }
+const state = { entries: [], groceries: [], favorites: [], addType: 'eenmalig', weekOffset: 0, filterWho: null, currentUser: null, addForDate: null, editId: null, detailId: null, weather: null }
 
 // ── preferences ──
 function loadPrefs() {
@@ -568,7 +568,7 @@ function renderWeek() {
       const body = items.map(e => {
         const t = showTimeForDay(e, dStr)
         const c = e.category === 'eten' ? 'p-Eten' : personClass(col)
-        return `<div class="ci ${c}${e.opFysiekBord ? '' : ' is-pending'}" data-id="${esc(e.id)}" title="${esc(entryTooltip(e) || (e.opFysiekBord ? '' : 'Nog op het bord zetten'))}">${entryIconHtml(e, col)}${t ? `<span class="ci-time mono">${esc(t)}</span>` : ''}<span class="ci-title">${esc(e.title)}</span>${entryAgeBadge(e, dStr)}${conflictBadge(e, dStr)}${e.note ? '<svg class="ci-note" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>' : ''}${e.isHoliday ? '' : `<button class="ci-del" data-id="${esc(e.id)}" data-date="${esc(dStr)}" aria-label="Verwijderen">×</button>`}</div>`
+        return `<div class="ci ${c}${e.opFysiekBord ? '' : ' is-pending'}${state.flashId === e.id ? ' is-new' : ''}" data-id="${esc(e.id)}" title="${esc(entryTooltip(e) || (e.opFysiekBord ? '' : 'Nog op het bord zetten'))}">${entryIconHtml(e, col)}${t ? `<span class="ci-time mono">${esc(t)}</span>` : ''}<span class="ci-title">${esc(e.title)}</span>${entryAgeBadge(e, dStr)}${conflictBadge(e, dStr)}${e.note ? '<svg class="ci-note" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>' : ''}${e.isHoliday ? '' : `<button class="ci-del" data-id="${esc(e.id)}" data-date="${esc(dStr)}" aria-label="Verwijderen">×</button>`}</div>`
       }).join('')
       return `<td${col === 'Algemeen' ? ' class="col-algemeen"' : ''}>${body}<button class="cell-add" data-date="${esc(dStr)}" data-dayname="${esc(dName)}" data-who="${esc(col)}">+</button></td>`
     }).join('')
@@ -651,7 +651,7 @@ function blockHtml(e, dStr, size = '') {
   const pre = e.isHoliday ? '🇳🇱 ' : isBirthday(e) ? '🎂 ' : e.category === 'eten' ? `<span class="blk-icons">${SVG.eat}</span> ` : ''
   const post = (e.note ? ` <span class="blk-icons" title="Heeft een notitie">${SVG.note}</span>` : '') +
     (clashes.length ? ` <span class="blk-icons blk-warn" title="Overlapt met ${esc(clashes.map(o => o.title).join(', '))}">${SVG.warn}</span>` : '')
-  return `<div class="blk ${size} ${c.cls}${e.opFysiekBord ? '' : ' is-pending'}" style="${c.style}" data-id="${esc(e.id)}" data-date="${esc(dStr)}" role="button" tabindex="0">${t ? `<div class="blk-time">${esc(t)}</div>` : ''}<div class="blk-body"><div class="blk-title">${pre}${esc(e.title)}${post}</div>${meta.length ? `<div class="blk-meta">${esc(meta.join(' · '))}</div>` : ''}</div></div>`
+  return `<div class="blk ${size} ${c.cls}${e.opFysiekBord ? '' : ' is-pending'}${state.flashId === e.id ? ' is-new' : ''}" style="${c.style}" data-id="${esc(e.id)}" data-date="${esc(dStr)}" role="button" tabindex="0">${t ? `<div class="blk-time">${esc(t)}</div>` : ''}<div class="blk-body"><div class="blk-title">${pre}${esc(e.title)}${post}</div>${meta.length ? `<div class="blk-meta">${esc(meta.join(' · '))}</div>` : ''}</div></div>`
 }
 
 // Tap (or Enter) opens the detail sheet. Horizontal swipes are reserved for changing weeks.
@@ -848,9 +848,9 @@ fabMenu.addEventListener('click', ev => {
   const b = ev.target.closest('[data-fab]'); if (!b) return
   const action = b.dataset.fab
   closeFabMenu()
-  if (action === 'item') { showView('week'); hideAllPanels(); state.addForDate = null; state.editId = null; itemPanel.hidden = false; resetItemPanel(); itemPanel.scrollIntoView({ block: 'start' }) }
-  else if (action === 'dinner') { showView('week'); if (dinnerPanel.hidden) $('btnNewDinner').click(); dinnerPanel.scrollIntoView({ block: 'start' }) }
-  else if (action === 'grocery') { showView('groceries'); focusSoon('g-input') }
+  if (action === 'item') { hideAllPanels(); state.addForDate = null; state.editId = null; itemPanel.hidden = false; resetItemPanel() }
+  else if (action === 'dinner') { if (dinnerPanel.hidden) $('btnNewDinner').click() }
+  else if (action === 'grocery') { hideAllPanels(); groceryPanel.hidden = false; focusSoon('gq-input') }
   else if (action === 'scan') { showView('board'); if (photoPanel.hidden) $('btnPhoto').click() }
 })
 
@@ -864,12 +864,25 @@ function resetItemPanel() {
   $('quick-hint').hidden = true
   $('f-submit').textContent = 'Toevoegen'
   $('f-back').hidden = false
+  $('itemPanelTitle').textContent = 'Nieuwe afspraak'
   focusSoon('quick-text')
 }
 
 const itemPanel = $('itemPanel'), groceryPanel = $('groceryPanel'), dinnerPanel = $('dinnerPanel'), photoPanel = $('photoPanel')
 const addDropdownMenu = $('addDropdownMenu')
 function hideAllPanels() { itemPanel.hidden = true; groceryPanel.hidden = true; dinnerPanel.hidden = true; closeInlineDetail() }
+// Form sheets: show a backdrop and lock page scroll while one is open
+const formBackdrop = $('formBackdrop')
+function closeFormSheets() { itemPanel.hidden = true; groceryPanel.hidden = true; dinnerPanel.hidden = true }
+function syncFormSheets() {
+  const open = !itemPanel.hidden || !groceryPanel.hidden || !dinnerPanel.hidden
+  if (formBackdrop.hidden === open) formBackdrop.hidden = !open // only write on change (avoids observer loops)
+  document.body.classList.toggle('sheet-open', open)
+}
+const sheetObserver = new MutationObserver(syncFormSheets)
+;[itemPanel, groceryPanel, dinnerPanel].forEach(el => sheetObserver.observe(el, { attributes: true, attributeFilter: ['hidden'] }))
+formBackdrop.addEventListener('click', closeFormSheets)
+document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !formBackdrop.hidden) closeFormSheets() })
 $('btnAddToggle').addEventListener('click', (ev) => { ev.stopPropagation(); addDropdownMenu.hidden = !addDropdownMenu.hidden })
 document.addEventListener('click', () => { if (addDropdownMenu && !addDropdownMenu.hidden) addDropdownMenu.hidden = true })
 $('btnNewItem').addEventListener('click', () => { const was = itemPanel.hidden; hideAllPanels(); state.addForDate = null; state.editId = null; if (was) { itemPanel.hidden = false; resetItemPanel() } })
@@ -879,7 +892,6 @@ function openItemForDay(dateStr, dayName, who) {
   state.addForDate = { date: dateStr, dayName, who: who || null }
   itemPanel.hidden = false
   resetItemPanel()
-  itemPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   const el = $('quick-text')
   el.placeholder = who ? 'Item voor ' + who + ' op ' + DAY_LABELS[dayName] + '…' : 'Item voor ' + DAY_LABELS[dayName] + '…'
 }
@@ -959,7 +971,6 @@ document.addEventListener('keydown', ev => { if (ev.key === 'Escape') { closeInl
 function openEditEntry(id) {
   const e = state.entries.find(x => x.id === id)
   if (!e) return
-  if (currentView !== 'week') showView('week')
   state.editId = id
   state.addForDate = null
   hideAllPanels()
@@ -974,7 +985,7 @@ function openEditEntry(id) {
   $('categoryField').hidden = e.who !== 'Algemeen'
   if (e.category) $('f-category').value = e.category
   const typeMap = { wekelijks: $('typeWeekly'), jaarlijks: $('typeYearly'), eenmalig: $('typeOnce'), periode: $('typePeriod') }
-  ;(typeMap[e.type] || $('typeWeekly')).click()
+  ;(typeMap[e.type] || $('typeOnce')).click()
   if (e.weekday) $('f-weekday').value = e.weekday
   if (e.date) $('f-date').value = e.date
   if (e.endDate) $('f-enddate').value = e.endDate
@@ -983,8 +994,8 @@ function openEditEntry(id) {
   $('f-birthyear').value = e.birthYear || ''
   $('f-submit').textContent = 'Opslaan'
   $('f-back').hidden = true
+  $('itemPanelTitle').textContent = 'Afspraak bewerken'
   itemPanel.hidden = false
-  itemPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
 }
 
 $('quick-cancel').addEventListener('click', () => itemPanel.hidden = true)
@@ -992,16 +1003,12 @@ $('f-cancel').addEventListener('click', () => itemPanel.hidden = true)
 $('f-back').addEventListener('click', () => { $('itemForm').hidden = true; $('quickAddBox').hidden = false; focusSoon('quick-text') })
 $('quick-manual').addEventListener('click', () => {
   $('itemForm').reset(); setTimePicker(''); $('categoryField').hidden = true; $('quick-hint').hidden = true
-  if (state.addForDate) {
-    $('typeWeekly').click()
-    $('f-weekday').value = state.addForDate.dayName
-    $('f-date').value = state.addForDate.date
-    if (state.addForDate.who) setWho(state.addForDate.who)
-    else if (state.currentUser) setWho(state.currentUser)
-  } else {
-    $('typeWeekly').click()
-    if (state.currentUser) setWho(state.currentUser)
-  }
+  const day = state.addForDate ? state.addForDate.date : todayInfo().iso
+  $('f-date').value = day
+  $('f-weekday').value = dayNameOf(new Date(day + 'T12:00:00'))
+  $('typeOnce').click()
+  if (state.addForDate && state.addForDate.who) setWho(state.addForDate.who)
+  else if (state.currentUser) setWho(state.currentUser)
   $('quickAddBox').hidden = true; $('itemForm').hidden = false; focusSoon('f-title')
 })
 
@@ -1033,7 +1040,7 @@ $('quick-parse').addEventListener('click', async () => {
     if (d.end_date) $('f-enddate').value = d.end_date
     if (d.weekday) $('f-weekday').value = d.weekday
     const typeMap = { wekelijks: typeWeekly, jaarlijks: typeYearly, eenmalig: typeOnce, periode: typePeriod }
-    const typeBtn = typeMap[d.type] || typeWeekly
+    const typeBtn = typeMap[d.type] || typeOnce
     typeBtn.click()
     if (d.who) setWho(d.who)
     else if (state.addForDate && state.addForDate.who) setWho(state.addForDate.who)
@@ -1079,6 +1086,7 @@ function setTypeButtons(active) { [typeWeekly, typeYearly, typeOnce, typePeriod]
 
 typeWeekly.addEventListener('click', () => {
   state.addType = 'wekelijks'; setTypeButtons(typeWeekly)
+  if ($('f-date').value) $('f-weekday').value = dayNameOf(new Date($('f-date').value + 'T12:00:00'))
   weekdayField.hidden = false; dateRow.hidden = false; dateField.hidden = false; endDateField.hidden = false
   dateFieldLabel.textContent = 'Vanaf'; endDateFieldLabel.textContent = 'Tot en met'
   dateFieldHint.hidden = true; syncEndDateMin(); $('birthYearField').hidden = true
@@ -1120,6 +1128,22 @@ function findClashForNew({ type, weekday, date, endDate, time, editId }) {
   return null
 }
 
+// After saving: reload, show the item's week (when in the week view), scroll to it and let it light up briefly
+async function revealSaved(id, dateStr) {
+  state.flashId = id || null
+  if (currentView === 'week' && dateStr) {
+    const target = Math.round((mondayOf(new Date(dateStr + 'T12:00:00')) - mondayOf(new Date())) / (7 * 86400000))
+    if (target !== state.weekOffset) { state.weekOffset = target; renderWeek() } // switch right away, data follows
+  }
+  await loadEntries()
+  if (!id) return
+  requestAnimationFrame(() => {
+    const el = [...document.querySelectorAll('[data-id="' + id + '"]')].find(x => x.offsetParent && (x.classList.contains('blk') || x.classList.contains('ci')))
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  })
+  setTimeout(() => { if (state.flashId === id) state.flashId = null }, 2500)
+}
+
 $('itemForm').addEventListener('submit', async (ev) => {
   ev.preventDefault()
   const title = $('f-title').value.trim(), who = whoHidden.value, time = $('f-time').value
@@ -1151,17 +1175,21 @@ $('itemForm').addEventListener('submit', async (ev) => {
     reminder_minutes: reminderVal !== '' ? parseInt(reminderVal) : null,
     birth_year: (state.addType === 'jaarlijks' && $('f-birthyear').value) ? parseInt($('f-birthyear').value) : null
   }
-  let error
-  if (state.editId) {
-    ({ error } = await dbWrite('update', 'entries', { id: state.editId, data: row }))
+  let error, saved
+  const wasEdit = !!state.editId
+  if (wasEdit) {
+    ({ data: saved, error } = await dbWrite('update', 'entries', { id: state.editId, data: row }))
   } else {
     row.source = 'handmatig'; row.op_fysiek_bord = false
-    ;({ error } = await dbWrite('insert', 'entries', { data: row }))
+    ;({ data: saved, error } = await dbWrite('insert', 'entries', { data: row }))
   }
   submitBtn.disabled = false
-  if (error) { toast(state.editId ? 'Opslaan mislukt.' : 'Toevoegen mislukt.'); return }
-  toast(state.editId ? 'Opgeslagen.' : 'Toegevoegd.')
-  state.editId = null; itemPanel.hidden = true; loadEntries()
+  if (error) { toast(wasEdit ? 'Opslaan mislukt.' : 'Toevoegen mislukt.'); return }
+  const savedId = (saved && saved[0] && saved[0].id) || state.editId
+  const whenTxt = row.type === 'wekelijks' ? 'elke ' + row.weekday : fmtDateFull(row.date)
+  toast((wasEdit ? 'Opgeslagen' : 'Toegevoegd') + ' · ' + whenTxt)
+  state.editId = null; itemPanel.hidden = true
+  revealSaved(savedId, row.type === 'wekelijks' ? null : row.date)
 })
 
 // ── groceries ──
@@ -1187,10 +1215,11 @@ $('dinnerQuickForm').addEventListener('submit', async (ev) => {
   const title = $('d-title').value.trim(), date = $('d-date').value, note = $('d-note').value.trim()
   if (!title || !date) { toast('Vul in wat we eten en de datum.'); return }
   const btn = ev.target.querySelector('button[type="submit"]'); btn.disabled = true
-  const { error } = await dbWrite('insert', 'entries', { data: { title, who: 'Algemeen', type: 'eenmalig', date, time: '', note, category: 'eten', source: 'handmatig', op_fysiek_bord: false } })
+  const { data: saved, error } = await dbWrite('insert', 'entries', { data: { title, who: 'Algemeen', type: 'eenmalig', date, time: '', note, category: 'eten', source: 'handmatig', op_fysiek_bord: false } })
   btn.disabled = false
   if (error) { toast('Toevoegen mislukt.'); return }
-  toast('Avondeten toegevoegd.'); $('d-title').value = ''; $('d-note').value = ''; dinnerPanel.hidden = true; loadEntries()
+  toast('Avondeten toegevoegd · ' + fmtDateFull(date)); $('d-title').value = ''; $('d-note').value = ''; dinnerPanel.hidden = true
+  revealSaved(saved && saved[0] && saved[0].id, date)
 })
 
 // ── rooster scan ──
