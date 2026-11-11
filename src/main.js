@@ -1222,107 +1222,146 @@ $('dinnerQuickForm').addEventListener('submit', async (ev) => {
   revealSaved(saved && saved[0] && saved[0].id, date)
 })
 
-// ── rooster scan ──
+// ── rooster scan: several screenshots at once, only the chosen person's shifts ──
+const scanImages = [] // { dataUrl, data, mimeType }
+const MAX_SCAN_IMAGES = 12
+
 $('btnPhoto').addEventListener('click', () => {
   if (photoPanel.hidden) {
-    const sel = $('scan-who')
-    sel.innerHTML = COLUMNS.map(c => '<option value="' + esc(c) + '"' + (c === state.currentUser ? ' selected' : '') + '>' + esc(c) + '</option>').join('')
+    $('scan-who').innerHTML = FAMILY.map(c => '<option value="' + esc(c) + '"' + (c === state.currentUser ? ' selected' : '') + '>' + esc(c) + '</option>').join('')
   }
   photoPanel.hidden = !photoPanel.hidden
 })
-$('photo-cancel').addEventListener('click', () => { photoPanel.hidden = true; $('photo-input').value = ''; $('photo-preview').hidden = true; $('photo-results').hidden = true; $('photo-scan').hidden = true })
 
-function loadImagePreview(dataUrl) {
-  $('photo-img').src = dataUrl; $('photo-preview').hidden = false; $('photo-scan').hidden = false; $('photo-status').textContent = ''
+function resetScan() {
+  scanImages.length = 0
+  $('photo-input').value = ''
+  $('photo-results').hidden = true; $('photo-results').innerHTML = ''
+  $('photo-status').textContent = ''
+  renderScanThumbs()
 }
+$('photo-cancel').addEventListener('click', () => { photoPanel.hidden = true; resetScan() })
+
+// Shrink to max 1600px on the long side as JPEG: phone screenshots stay readable but upload fast
+function shrinkImage(blob) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob)
+    const img = new Image()
+    img.onload = () => {
+      const scale = Math.min(1, 1600 / Math.max(img.width, img.height))
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(img.width * scale); canvas.height = Math.round(img.height * scale)
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
+      URL.revokeObjectURL(url)
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85)
+      resolve({ dataUrl, data: dataUrl.split(',')[1], mimeType: 'image/jpeg' })
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Kon afbeelding niet openen')) }
+    img.src = url
+  })
+}
+
+async function addScanFiles(files) {
+  const imgs = [...files].filter(f => f.type.startsWith('image/'))
+  if (scanImages.length + imgs.length > MAX_SCAN_IMAGES) toast(`Maximaal ${MAX_SCAN_IMAGES} screenshots tegelijk.`)
+  for (const f of imgs.slice(0, MAX_SCAN_IMAGES - scanImages.length)) {
+    try { scanImages.push(await shrinkImage(f)) } catch { toast('Een afbeelding kon niet worden geopend.') }
+  }
+  $('photo-results').hidden = true
+  renderScanThumbs()
+}
+
+function renderScanThumbs() {
+  const wrap = $('scanThumbs'), n = scanImages.length
+  wrap.hidden = n === 0
+  wrap.innerHTML = scanImages.map((im, i) => `<div class="scan-thumb"><img src="${im.dataUrl}" alt="Screenshot ${i + 1}" /><span class="scan-thumb-num">${i + 1}</span><button type="button" class="scan-thumb-del" data-idx="${i}" aria-label="Screenshot ${i + 1} verwijderen">×</button></div>`).join('')
+  wrap.querySelectorAll('.scan-thumb-del').forEach(b => b.addEventListener('click', () => { scanImages.splice(Number(b.dataset.idx), 1); renderScanThumbs() }))
+  const btn = $('photo-scan')
+  btn.hidden = n === 0
+  btn.textContent = n === 1 ? 'Lees 1 screenshot' : `Lees ${n} screenshots`
+}
+
+$('photo-input').addEventListener('change', ev => addScanFiles(ev.target.files))
 
 $('scan-paste').addEventListener('click', async () => {
   try {
     const items = await navigator.clipboard.read()
+    const blobs = []
     for (const item of items) {
-      const imgType = item.types.find(t => t.startsWith('image/'))
-      if (imgType) {
-        const blob = await item.getType(imgType)
-        const reader = new FileReader()
-        reader.onload = () => loadImagePreview(reader.result)
-        reader.readAsDataURL(blob)
-        return
-      }
+      const t = item.types.find(x => x.startsWith('image/'))
+      if (t) blobs.push(new File([await item.getType(t)], 'plak.png', { type: t }))
     }
-    toast('Geen afbeelding op het klembord.')
-  } catch (e) {
-    toast('Kan klembord niet lezen. Gebruik "Kies bestand".')
-  }
+    if (blobs.length) addScanFiles(blobs); else toast('Geen afbeelding op het klembord.')
+  } catch { toast('Kan klembord niet lezen. Gebruik "Kies screenshots".') }
 })
 
-$('photo-input').addEventListener('change', (ev) => {
-  const file = ev.target.files[0]
-  if (!file) return
-  const reader = new FileReader()
-  reader.onload = () => loadImagePreview(reader.result)
-  reader.readAsDataURL(file)
-})
+// Is this shift already in the planner? (same person, date and start time)
+function scanAlreadyPlanned(who, date, time) {
+  return state.entries.some(e => e.date === date && whoList(e).includes(who) && (e.time || '') === (time || '') && e.source === 'foto')
+}
 
 $('photo-scan').addEventListener('click', async () => {
-  const imgSrc = $('photo-img').src
-  if (!imgSrc || !imgSrc.startsWith('data:')) { toast('Plak of kies eerst een screenshot.'); return }
+  if (scanImages.length === 0) { toast('Kies eerst een of meer screenshots.'); return }
   const who = $('scan-who').value
-  const btn = $('photo-scan')
-  btn.disabled = true; btn.textContent = 'Bezig met herkennen…'; $('photo-status').textContent = 'Even geduld, AI leest het rooster…'
+  const btn = $('photo-scan'), n = scanImages.length
+  btn.disabled = true; btn.textContent = 'Bezig met lezen…'
+  $('photo-status').textContent = `AI leest ${n} screenshot${n === 1 ? '' : 's'} en zoekt de diensten van ${who}…`
   try {
-    const [header, base64] = imgSrc.split(',')
-    const mimeType = header.match(/:(.*?);/)[1]
-    const resp = await fetch('/api/ocr', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageBase64: base64, mimeType, who, password: localStorage.getItem('wp-auth') }) })
-    if (!resp.ok) throw new Error('API error')
-    const data = await resp.json()
-    $('photo-status').textContent = data.summary || 'Klaar.'
-    const entries = data.entries || []
-    $('photo-scan').hidden = true
-    if (entries.length === 0) { $('photo-results').innerHTML = '<p class="panel-sub">Geen diensten gevonden.</p>'; $('photo-results').hidden = false; return }
-    $('photo-results').innerHTML = '<p class="panel-sub" style="margin-bottom:6px">Gevonden diensten (pas datum/tijd aan indien nodig):</p>' +
-      entries.map((e, i) =>
-        '<div class="scan-entry" style="display:flex;align-items:center;gap:6px;padding:5px 0;font-size:0.85rem;flex-wrap:wrap">' +
-          '<input type="checkbox" checked data-idx="' + i + '" class="scan-check" style="accent-color:var(--accent)" />' +
-          '<input type="date" class="scan-date" data-idx="' + i + '" value="' + esc(e.date || '') + '" />' +
-          '<input type="time" class="scan-time" data-idx="' + i + '" value="' + esc(e.time || '') + '" />' +
-          (e.end_time ? '<span style="color:var(--ink-soft)">–</span><input type="time" class="scan-endtime" data-idx="' + i + '" value="' + esc(e.end_time) + '" />' : '') +
-          '<span style="color:var(--ink-soft)">' + esc(e.title || 'Werk') + '</span>' +
-        '</div>'
-      ).join('') +
-      '<div style="margin-top:8px"><button type="button" class="btn btn-primary btn-sm" id="scan-add-all">Geselecteerde toevoegen</button></div>'
-    $('photo-results').hidden = false
-    $('scan-add-all').addEventListener('click', async () => {
-      const checks = $('photo-results').querySelectorAll('.scan-check:checked')
-      if (checks.length === 0) { toast('Selecteer minstens één dienst.'); return }
-      const selectedWho = $('scan-who').value
-      const addBtn = $('scan-add-all'); addBtn.disabled = true; addBtn.textContent = 'Bezig…'
-      const rows = []
-      for (const cb of checks) {
-        const idx = cb.dataset.idx
-        const e = entries[parseInt(idx)]
-        const dateInput = $('photo-results').querySelector('.scan-date[data-idx="' + idx + '"]')
-        const timeInput = $('photo-results').querySelector('.scan-time[data-idx="' + idx + '"]')
-        const endInput = $('photo-results').querySelector('.scan-endtime[data-idx="' + idx + '"]')
-        const date = dateInput ? dateInput.value : (e.date || null)
-        const time = timeInput ? timeInput.value : (e.time || '')
-        const endTime = endInput ? endInput.value : (e.end_time || '')
-        const isFree = /^vrij\b/i.test((e.title || '').trim())
-        const row = { title: selectedWho + (isFree ? ' vrij' : ' werken'), who: selectedWho, type: 'eenmalig', weekday: null, date: date || null, end_date: null, time: time || null, note: (!isFree && endTime) ? 'Tot ' + endTime : '', category: null, skip_dates: [], source: 'foto', op_fysiek_bord: false, photo_id: null, reminder_minutes: null, birth_year: null }
-        if (isFree) row.time = null
-        rows.push(row)
-      }
-      const { data: inserted, error } = await dbWrite('insert', 'entries', { data: rows })
-      const added = error ? 0 : (inserted ? inserted.length : rows.length)
-      const lastErr = error ? (error.message || 'onbekende fout') : ''
-      if (added > 0) { toast(added + ' dienst' + (added !== 1 ? 'en' : '') + ' toegevoegd.'); loadEntries() }
-      if (lastErr) { toast('Fout: ' + lastErr); $('photo-status').textContent = 'Fout: ' + lastErr; addBtn.disabled = false; addBtn.textContent = 'Geselecteerde toevoegen'; return }
-      photoPanel.hidden = true; $('photo-input').value = ''; $('photo-preview').hidden = true; $('photo-results').hidden = true; $('photo-scan').hidden = true
+    const resp = await fetch('/api/ocr', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ images: scanImages.map(({ data, mimeType }) => ({ data, mimeType })), who, password: localStorage.getItem('wp-auth') })
     })
+    const data = await resp.json().catch(() => ({}))
+    if (!resp.ok) throw new Error(data.error || 'De scan is mislukt.')
+    renderScanResults(data, who)
   } catch (e) {
-    toast('Rooster kon niet worden verwerkt.')
-    $('photo-status').textContent = 'Er ging iets mis.'
-  } finally { btn.disabled = false; btn.textContent = 'Verwerk rooster' }
+    toast(e.message || 'Rooster kon niet worden verwerkt.')
+    $('photo-status').textContent = e.message || 'Er ging iets mis.'
+  } finally { btn.disabled = false; renderScanThumbs() }
 })
+
+function renderScanResults(data, who) {
+  const entries = data.entries || []
+  $('photo-status').textContent = data.summary || ''
+  const problems = (data.perImage || []).filter(p => p.error || !p.found)
+    .map(p => `<li>Screenshot ${p.screenshot}${p.date ? ' (' + esc(fmtDateFull(p.date)) + ')' : ''}: ${p.error ? 'kon niet gelezen worden' : esc(who) + ' staat er niet op'}</li>`).join('')
+  const rows = entries.map((e, i) => {
+    const dup = scanAlreadyPlanned(who, e.date, e.time)
+    const label = e.title === 'Vrij' ? 'Vrij' : 'Werk' + (e.note ? ' · ' + esc(e.note) : '')
+    return `<div class="scan-entry${dup ? ' is-dup' : ''}">
+      <input type="checkbox" class="scan-check" data-idx="${i}" ${dup ? '' : 'checked'} aria-label="Dienst ${i + 1} toevoegen" />
+      <input type="date" class="scan-date" data-idx="${i}" value="${esc(e.date || '')}" />
+      ${e.title === 'Vrij' ? '' : `<input type="time" class="scan-time" data-idx="${i}" value="${esc(e.time || '')}" /><span class="scan-dash">–</span><input type="time" class="scan-endtime" data-idx="${i}" value="${esc(e.end_time || '')}" />`}
+      <span class="scan-label">${label}${dup ? ' <em>staat er al</em>' : ''}</span>
+    </div>`
+  }).join('')
+  $('photo-results').innerHTML =
+    (problems ? `<ul class="scan-problems">${problems}</ul>` : '') +
+    (entries.length ? `<p class="panel-sub" style="margin:8px 0 4px">Controleer de diensten en pas zo nodig aan:</p>${rows}<div class="form-actions" style="margin-top:10px"><button type="button" class="btn btn-primary" id="scan-add-all">Toevoegen aan planner</button></div>` : `<p class="panel-sub">Geen diensten van ${esc(who)} gevonden.</p>`)
+  $('photo-results').hidden = false
+  $('scan-add-all')?.addEventListener('click', () => addScannedShifts(entries, who))
+}
+
+async function addScannedShifts(entries, who) {
+  const box = $('photo-results')
+  const checks = [...box.querySelectorAll('.scan-check:checked')]
+  if (checks.length === 0) { toast('Selecteer minstens één dienst.'); return }
+  const addBtn = $('scan-add-all'); addBtn.disabled = true; addBtn.textContent = 'Bezig…'
+  const rows = checks.map(cb => {
+    const i = cb.dataset.idx, e = entries[Number(i)]
+    const date = box.querySelector(`.scan-date[data-idx="${i}"]`).value || e.date
+    const isFree = e.title === 'Vrij'
+    const time = isFree ? null : (box.querySelector(`.scan-time[data-idx="${i}"]`)?.value || null)
+    const end = isFree ? '' : (box.querySelector(`.scan-endtime[data-idx="${i}"]`)?.value || '')
+    return { title: who + (isFree ? ' vrij' : ' werken'), who, type: 'eenmalig', weekday: null, date, end_date: null, time, note: end ? 'Tot ' + end : '', category: null, skip_dates: [], source: 'foto', op_fysiek_bord: false, photo_id: null, reminder_minutes: null, birth_year: null }
+  })
+  const { data: inserted, error } = await dbWrite('insert', 'entries', { data: rows })
+  if (error) { toast('Toevoegen mislukt: ' + (error.message || 'onbekende fout')); addBtn.disabled = false; addBtn.textContent = 'Toevoegen aan planner'; return }
+  const added = inserted ? inserted.length : rows.length
+  toast(added + ' dienst' + (added !== 1 ? 'en' : '') + ' toegevoegd.')
+  photoPanel.hidden = true; resetScan()
+  loadEntries()
+}
 
 function renderGroceries() {
   const ul = $('groceryList'), empty = $('groceryEmpty')

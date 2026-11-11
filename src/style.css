@@ -495,3 +495,24 @@ body.sheet-open { overflow: hidden; }
   .form-sheet .sheet-grip { display: none; }
   .form-sheet .sheet-actions { bottom: -18px; padding-bottom: 4px; }
 }
+
+/* ── rooster scan ── */
+.scan-who-row { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
+.scan-who-row label { font-size: 0.86rem; color: var(--ink-soft); }
+.scan-who-row select { flex: 1; border: 1px solid var(--border); background: var(--surface); border-radius: 10px; padding: 8px 10px; }
+.scan-pick { display: flex; gap: 8px; flex-wrap: wrap; }
+.scan-file-btn { position: relative; cursor: pointer; }
+.visually-hidden-file { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+.scan-thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 8px; margin-top: 12px; }
+.scan-thumb { position: relative; aspect-ratio: 9 / 16; border-radius: 8px; overflow: hidden; background: var(--surface-2); }
+.scan-thumb img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
+.scan-thumb-num { position: absolute; left: 4px; bottom: 4px; background: rgba(0,0,0,0.6); color: #fff; font-size: 0.72rem; border-radius: 6px; padding: 0 5px; }
+.scan-thumb-del { position: absolute; top: 3px; right: 3px; width: 24px; height: 24px; border-radius: 50%; border: none; background: rgba(0,0,0,0.6); color: #fff; font-size: 1rem; line-height: 1; cursor: pointer; }
+.scan-entry { display: flex; align-items: center; gap: 6px; padding: 7px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; font-size: 0.9rem; }
+.scan-entry input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent); }
+.scan-entry input[type="date"], .scan-entry input[type="time"] { border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 5px 6px; color: var(--ink); }
+.scan-dash { color: var(--ink-soft); }
+.scan-label { color: var(--ink-soft); }
+.scan-label em { font-style: normal; color: var(--warn); margin-left: 4px; }
+.scan-entry.is-dup { opacity: 0.7; }
+.scan-problems { margin: 8px 0 0; padding: 8px 12px 8px 26px; background: var(--warn-soft); border-radius: 10px; font-size: 0.86rem; }
