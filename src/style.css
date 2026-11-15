@@ -86,8 +86,7 @@ svg { flex: none; }
 .topbar { position: sticky; top: 0; z-index: 35; background: var(--bg); padding: calc(12px + env(safe-area-inset-top)) 14px 8px; margin: 0 -14px 0; }
 .topbar-inner { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .brand { display: flex; gap: 8px; align-items: center; }
-.brand-mark { flex: none; width: 28px; height: 28px; border-radius: 10px; background: var(--fab); color: var(--fab-ink); display: grid; place-items: center; }
-.brand-mark svg { width: 17px; height: 17px; }
+.brand-mark { flex: none; width: 30px; height: 30px; display: block; }
 .brand-text h1 { font-size: 1.15rem; font-weight: 600; }
 .avatar-btn { width: 36px; height: 36px; border-radius: 50%; border: none; background: var(--pc-bg); color: var(--pc-ink); font-weight: 600; font-size: 1rem; cursor: pointer; display: grid; place-items: center; }
 .avatar-btn.is-active { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--pc-dot); }
@@ -417,8 +416,7 @@ details[open] > .archive-toggle::before { transform: rotate(90deg); }
 /* ── login ── */
 .login-overlay { position: fixed; inset: 0; background: var(--bg); display: grid; place-items: center; z-index: 120; padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom)); }
 .login-box { text-align: center; max-width: 320px; width: 100%; }
-.login-icon { display: inline-grid; place-items: center; width: 56px; height: 56px; border-radius: 18px; background: var(--fab); color: var(--fab-ink); margin-bottom: 10px; }
-.login-icon svg { width: 30px; height: 30px; }
+.login-icon { display: inline-block; width: 64px; height: 64px; margin-bottom: 10px; }
 .login-box h2 { font-size: 1.5rem; margin-bottom: 2px; }
 .login-sub { color: var(--ink-soft); margin: 0 0 16px; }
 .login-members { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }

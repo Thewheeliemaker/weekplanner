@@ -1,8 +1,8 @@
 // ── offline cache ──
 // App shell: network-first for pages (so updates arrive right away), cache-first for hashed /assets files.
 // Data is not cached here: the app keeps its own copy in localStorage.
-const CACHE = 'wp-shell-v1'
-const SHELL = ['/', '/manifest.json', '/icon-192.png', '/icon-192.svg']
+const CACHE = 'wp-shell-v2'
+const SHELL = ['/', '/manifest.json', '/apple-touch-icon-v2.png', '/icon-v2.svg']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()))
@@ -66,8 +66,8 @@ self.addEventListener('push', (event) => {
   try { data = event.data.json() } catch {}
   const options = {
     body: data.body || '',
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
+    icon: '/apple-touch-icon-v2.png',
+    badge: '/apple-touch-icon-v2.png',
     vibrate: [200, 100, 200]
   }
   if (data.tag) options.tag = data.tag
