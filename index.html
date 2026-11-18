@@ -112,6 +112,11 @@
 
         <section class="view" id="view-board" hidden>
           <div class="panel">
+            <div class="seg" role="tablist" aria-label="Bord">
+              <button type="button" class="seg-btn is-active" role="tab" data-board="board" aria-selected="true">Fysiek bord <span class="seg-count" id="segBoardCount" hidden></span></button>
+              <button type="button" class="seg-btn" role="tab" data-board="agenda" aria-selected="false">Mijn werkagenda <span class="seg-count is-alert" id="segAgendaCount" hidden></span></button>
+            </div>
+            <div id="boardPane">
             <div class="panel-head-row"><h2>Nog te verwerken op het fysieke bord</h2><div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-ghost btn-sm" id="btnPhoto">📋 Rooster scannen</button><button class="btn btn-ghost btn-sm" id="clearBoard">Alles verwerkt ✓</button></div></div>
             <p class="panel-sub">Digitaal toegevoegd, nog niet fysiek bijgewerkt.</p>
             <div class="add-panel" id="photoPanel" hidden>
@@ -136,6 +141,17 @@
               <summary class="archive-toggle">Recent toegevoegd <span class="archive-count" id="archiveCount"></span></summary>
               <ul id="archiveList" class="task-list archive-list"></ul>
             </details>
+            </div>
+
+            <div id="agendaPane" hidden>
+              <div class="panel-head-row"><h2>Blokken in je werkagenda</h2><button class="btn btn-ghost btn-sm" id="clearAgenda">Alles geblokt ✓</button></div>
+              <p class="panel-sub" id="agendaIntro">Afspraken met jouw naam of voor iedereen (Algemeen). Zet ze als "niet beschikbaar" in je werkrooster en vink ze af.</p>
+              <ul id="agendaTodo" class="todo-list"></ul>
+              <div id="agendaEmpty" class="todo-empty" hidden>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"></path></svg>
+                <div><strong>Alles staat in je werkagenda</strong><span>Nieuwe afspraken met jouw naam verschijnen hier vanzelf.</span></div>
+              </div>
+            </div>
           </div>
         </section>
         <section class="view" id="view-profile" hidden>
@@ -157,6 +173,20 @@
                 <ul id="locationResults" class="location-results" hidden></ul>
               </div>
               <div class="location-current" id="locationCurrent"></div>
+            </div>
+            <div class="settings-section-title">Meldingen</div>
+            <div class="settings-group">
+              <label class="setting-toggle"><input type="checkbox" id="pref-push" /><span>Meldingen op deze telefoon</span></label>
+              <p class="setting-hint" id="pushHint"></p>
+              <div class="setting-row">
+                <label for="pref-notify-scope" class="setting-label">Bij nieuwe afspraken</label>
+                <select id="pref-notify-scope" class="setting-select">
+                  <option value="all">Alles</option>
+                  <option value="mine">Alleen waar ik bij ben</option>
+                  <option value="none">Geen</option>
+                </select>
+              </div>
+              <p class="setting-hint">"Alleen waar ik bij ben" telt ook afspraken voor Algemeen (iedereen) mee. Herinneringen krijg je altijd alleen voor je eigen afspraken.</p>
             </div>
             <div class="settings-section-title">Ochtend-digest</div>
             <div class="settings-group">

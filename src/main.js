@@ -327,8 +327,24 @@ function showInAppNotify(msg) {
 }
 if (notifyCloseEl) notifyCloseEl.addEventListener('click', () => { notifyBannerEl.hidden = true; clearTimeout(notifyTimer) })
 
+// Per-person preference for new-item notifications ('all' | 'mine' | 'none'), shared via settings notify_pref_<Name>
+let myNotifyPref = 'all'
+async function loadNotifyPref() {
+  if (!state.currentUser) return
+  try {
+    const { data } = await supabase.from('settings').select('value').eq('id', 'notify_pref_' + state.currentUser).maybeSingle()
+    myNotifyPref = data && typeof data.value === 'string' ? data.value : 'all'
+  } catch {}
+  const sel = $('pref-notify-scope'); if (sel) sel.value = myNotifyPref
+}
+function involvesMe(row) {
+  const who = String(row.who || '').split(',').map(x => x.trim())
+  return who.includes(state.currentUser) || who.includes('Algemeen')
+}
+
 function notifyNewEntry(row) {
-  if (!PUSH_USERS.includes(state.currentUser)) return
+  if (myNotifyPref === 'none') return
+  if (myNotifyPref === 'mine' && !involvesMe(row)) return
   const title = row.title || 'Nieuw item'
   const who = row.who || ''
   const msg = title + (who && who !== 'Algemeen' ? ' (' + who + ')' : '')
@@ -347,13 +363,13 @@ function subscribeRealtime() {
 
 // ── board / task list ──
 function getNewSeenAt() { try { return localStorage.getItem('wp-new-seen-at') || '' } catch { return '' } }
-function markNewAsSeen() { try { localStorage.setItem('wp-new-seen-at', new Date().toISOString()) } catch {}; updateNewBadge(); try { navigator.clearAppBadge?.() } catch {} }
+function markNewAsSeen() { try { localStorage.setItem('wp-new-seen-at', new Date().toISOString()) } catch {}; updateNewBadge() }
 
 function updateNewBadge() {
   const badge = $('newBadge')
   if (!badge) return
   const seenAt = getNewSeenAt()
-  const unread = state.entries.filter(e => !e.opFysiekBord && e.createdAt && e.createdAt > seenAt).length
+  const unread = state.entries.filter(e => !e.opFysiekBord && e.createdAt && e.createdAt > seenAt).length + agendaItems().length
   if (unread > 0) { badge.textContent = unread; badge.hidden = false }
   else badge.hidden = true
   try { if ('setAppBadge' in navigator) { unread > 0 ? navigator.setAppBadge(unread) : navigator.clearAppBadge() } } catch {}
@@ -362,6 +378,8 @@ function updateNewBadge() {
 function renderTasks() {
   const ul = $('taskList'), empty = $('taskEmpty')
   const pending = state.entries.filter(e => !e.opFysiekBord).slice().reverse()
+  const segCnt = $('segBoardCount'); segCnt.textContent = pending.length; segCnt.hidden = pending.length === 0
+  renderAgendaTodo()
   updateNewBadge()
   if (pending.length === 0) { ul.innerHTML = ''; empty.hidden = false; return }
   empty.hidden = true
@@ -392,6 +410,102 @@ function renderTasks() {
     return `<li class="task-row"><div class="task-body"><div class="task-title">${esc(e.title)} ${e.category === 'eten' ? '' : chipHtml(e.who)}</div>${when ? `<div class="task-when mono">${esc(when)}</div>` : ''}</div></li>`
   }).join('')
 }
+
+
+// ── work-agenda list: items you're tagged in that you still need to block in your work roster ──
+// Done-state per person in settings agenda_done_<Name> as { entryId: signature }. If date/time changes
+// after ticking it off, the signature no longer matches and the item comes back as "gewijzigd".
+let agendaDone = {}
+function agendaSig(e) { return [e.type, e.date || '', e.endDate || '', e.weekday || '', e.time || ''].join('|') }
+async function loadAgendaDone() {
+  if (!state.currentUser) return
+  try {
+    const { data } = await supabase.from('settings').select('value').eq('id', 'agenda_done_' + state.currentUser).maybeSingle()
+    agendaDone = data && data.value && typeof data.value === 'object' && !Array.isArray(data.value) ? data.value : {}
+  } catch {}
+  renderAgendaTodo()
+}
+async function saveAgendaDone() {
+  // Drop ids of entries that no longer exist (only when entries are loaded, so nothing is lost offline)
+  if (state.entries.length) {
+    const ids = new Set(state.entries.map(e => e.id))
+    agendaDone = Object.fromEntries(Object.entries(agendaDone).filter(([id]) => ids.has(id)))
+  }
+  const { error } = await dbWrite('upsert', 'settings', { data: { id: 'agenda_done_' + state.currentUser, value: agendaDone } })
+  if (error) toast('Opslaan mislukt.')
+  return !error
+}
+function nextOccurrence(e, today) {
+  if (e.type === 'eenmalig') return e.date
+  if (e.type === 'periode') return e.date >= today ? e.date : today
+  if (e.type === 'jaarlijks') { const y = Number(today.slice(0, 4)); const d = y + e.date.slice(4); return d >= today ? d : (y + 1) + e.date.slice(4) }
+  const from = new Date((e.date && e.date > today ? e.date : today) + 'T12:00:00')
+  for (let i = 0; i < 7; i++) { const d = new Date(from); d.setDate(from.getDate() + i); if (dayNameOf(d) === e.weekday) return ymd(d) }
+  return today
+}
+// A stored row that is really a public holiday (same title + date as the calculated list)
+function isStoredHoliday(e) {
+  if (!e.date || !whoList(e).includes('Algemeen')) return false
+  return dutchHolidays(Number(e.date.slice(0, 4))).some(h => h.date === e.date && h.title === e.title)
+}
+function agendaItems() {
+  const me = state.currentUser
+  if (!me) return []
+  const today = ymd(new Date())
+  return state.entries.filter(e => {
+    const who = whoList(e)
+    if (!who.includes(me) && !who.includes('Algemeen')) return false   // tagged by name, or for everyone
+    if (e.source === 'foto') return false              // your own scanned work shifts
+    if (isBirthday(e) || e.category === 'eten') return false             // birthdays and dinner
+    if (isStoredHoliday(e)) return false               // public holidays stored as Algemeen rows (migration 007)
+    if (agendaDone[e.id] === agendaSig(e)) return false
+    if (e.type === 'eenmalig') return !!e.date && e.date >= today
+    if (e.type === 'periode') return (e.endDate || e.date || '') >= today
+    if (e.type === 'wekelijks') return !e.endDate || e.endDate >= today
+    return !!e.date
+  }).map(e => ({ e, next: nextOccurrence(e, today) }))
+    .sort((a, b) => (a.next + (a.e.time || '')).localeCompare(b.next + (b.e.time || '')))
+}
+function renderAgendaTodo() {
+  const list = $('agendaTodo'); if (!list) return
+  const items = agendaItems(), today = ymd(new Date())
+  const cnt = $('segAgendaCount'); cnt.textContent = items.length; cnt.hidden = items.length === 0
+  $('agendaEmpty').hidden = items.length > 0
+  $('clearAgenda').hidden = items.length < 2
+  list.innerHTML = items.map(({ e, next }) => {
+    const d = new Date(next + 'T12:00:00')
+    const weekly = e.type === 'wekelijks'
+    const dateHtml = weekly ? `<b>${DAY_ABBR[e.weekday]}</b><span>wekelijks</span>` : `<b>${d.getDate()}</b><span>${d.toLocaleDateString('nl-NL', { month: 'short' })}</span>`
+    let when = weekly ? 'Elke ' + (DAY_LABELS[e.weekday] || '').toLowerCase() + (e.date && e.date > today ? ' vanaf ' + fmtDateFull(e.date) : '') + (e.endDate ? ' t/m ' + fmtDateFull(e.endDate) : '')
+      : e.type === 'periode' ? capitalize(fmtDateFull(e.date)) + ' t/m ' + fmtDateFull(e.endDate)
+      : capitalize(fmtDateFull(next)) + (e.type === 'jaarlijks' ? ' · jaarlijks' : '')
+    if (e.time) when += ' · ' + e.time
+    const others = whoList(e).filter(n => n !== state.currentUser && FAMILY.includes(n))
+    if (others.length) when += ' · met ' + others.join(' & ')
+    const changed = agendaDone[e.id] && agendaDone[e.id] !== agendaSig(e)
+    return `<li class="todo-item ${entryColor(e).cls.replace(' is-split', '')}" data-id="${esc(e.id)}"><div class="todo-date${weekly ? ' is-recurring' : ''}">${dateHtml}</div><div class="todo-body"><div class="todo-title">${esc(e.title)}${changed ? '<span class="todo-new">gewijzigd</span>' : ''}</div><div class="todo-when">${esc(when)}</div>${e.note ? `<div class="todo-note">${esc(e.note)}</div>` : ''}</div><button type="button" class="todo-check" data-id="${esc(e.id)}" aria-label="${esc(e.title)}: geblokt in werkagenda"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"></path></svg>Geblokt</button></li>`
+  }).join('')
+  list.querySelectorAll('.todo-check').forEach(b => b.addEventListener('click', () => markAgendaDone([b.dataset.id], b.closest('.todo-item'))))
+  updateNewBadge()
+}
+async function markAgendaDone(ids, el) {
+  const before = { ...agendaDone }
+  ids.forEach(id => { const e = state.entries.find(x => x.id === id); if (e) agendaDone[id] = agendaSig(e) })
+  if (el) { el.classList.add('is-leaving'); setTimeout(renderAgendaTodo, 200) } else renderAgendaTodo()
+  if (!(await saveAgendaDone())) { agendaDone = before; renderAgendaTodo(); return }
+  undoSnack(ids.length === 1 ? 'Gemarkeerd als geblokt.' : ids.length + ' afspraken gemarkeerd als geblokt.', async () => { agendaDone = before; renderAgendaTodo(); await saveAgendaDone() })
+}
+$('clearAgenda').addEventListener('click', () => { const ids = agendaItems().map(x => x.e.id); if (ids.length) markAgendaDone(ids) })
+
+// Switch on the board screen: physical board / my work agenda (remembered per device)
+function showBoardPane(which) {
+  try { localStorage.setItem('wp-board-pane', which) } catch {}
+  $('boardPane').hidden = which !== 'board'
+  $('agendaPane').hidden = which !== 'agenda'
+  document.querySelectorAll('.seg-btn').forEach(b => { const on = b.dataset.board === which; b.classList.toggle('is-active', on); b.setAttribute('aria-selected', on ? 'true' : 'false') })
+}
+document.querySelectorAll('.seg-btn').forEach(b => b.addEventListener('click', () => showBoardPane(b.dataset.board)))
+showBoardPane((() => { try { return localStorage.getItem('wp-board-pane') || 'board' } catch { return 'board' } })())
 
 $('clearBoard').addEventListener('click', async () => {
   const pending = state.entries.filter(e => !e.opFysiekBord)
@@ -828,6 +942,7 @@ function showView(view) {
   VIEWS.forEach(v => { $('view-' + v).hidden = v !== view })
   closeFabMenu(); closeInlineDetail()
   if (view === 'board') markNewAsSeen()
+  if (view === 'profile') { syncPushToggle(); loadNotifyPref() }
   if (view === 'profile') { $('profileUser').textContent = state.currentUser || '—'; $('profileAvatar').textContent = state.currentUser ? state.currentUser.charAt(0).toUpperCase() : '—'; $('profileAvatar').className = 'profile-avatar' + (state.currentUser ? ' ' + personClass(state.currentUser) : '') }
   if (view === 'today') { renderToday(); loadTodayWeather() }
   window.scrollTo(0, 0)
@@ -1499,18 +1614,18 @@ $('loginPass').addEventListener('keydown', (e) => { if (e.key === 'Enter') tryLo
 // ── push subscription ──
 const pushPromptEl = $('pushPrompt'), pushEnableBtn = $('pushEnable'), pushDismissBtn = $('pushDismiss')
 
-const PUSH_USERS = ['Merel', 'Rick']
+function pushSupported() { return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window }
 
 function showPushPrompt() {
-  if (!PUSH_USERS.includes(state.currentUser)) return
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
-  if (Notification.permission === 'granted') { doSubscribePush(); return }
+  if (!pushSupported()) return
+  if (Notification.permission === 'granted') { if (!localStorage.getItem('wp-push-off')) doSubscribePush(true); return }
   if (Notification.permission === 'denied') return
   if (localStorage.getItem('wp-push-dismissed')) return
   if (pushPromptEl) pushPromptEl.hidden = false
 }
 
-async function doSubscribePush() {
+// silent: re-register quietly on app start; otherwise confirm with a toast
+async function doSubscribePush(silent = false) {
   try {
     const reg = await navigator.serviceWorker.register('/sw.js')
     await navigator.serviceWorker.ready
@@ -1526,15 +1641,59 @@ async function doSubscribePush() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password, subscription: sub.toJSON(), user: state.currentUser })
     })
-    if (resp.ok) toast('Push-notificaties actief.')
-    else { const err = await resp.json().catch(() => ({})); toast('Push-registratie mislukt: ' + (err.error || resp.status)) }
-  } catch (e) { toast('Push-setup mislukt: ' + e.message) }
+    if (resp.ok) { if (!silent) toast('Meldingen staan aan op deze telefoon.'); return true }
+    const err = await resp.json().catch(() => ({})); if (!silent) toast('Aanzetten mislukt: ' + (err.error || resp.status))
+  } catch (e) { if (!silent) toast('Aanzetten mislukt: ' + e.message) }
+  return false
 }
+
+// Profile: notifications on/off for this phone + what to get notified about
+const prefPush = $('pref-push'), pushHint = $('pushHint')
+async function currentPushSub() {
+  try { const reg = await navigator.serviceWorker.getRegistration(); return reg ? await reg.pushManager.getSubscription() : null } catch { return null }
+}
+async function syncPushToggle() {
+  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
+  const standalone = navigator.standalone || window.matchMedia('(display-mode: standalone)').matches
+  if (!pushSupported()) {
+    prefPush.checked = false; prefPush.disabled = true
+    pushHint.textContent = isIOS && !standalone ? 'Op de iPhone werken meldingen alleen in de app op je beginscherm (Safari → deelknop → Zet op beginscherm).' : 'Deze browser ondersteunt geen meldingen.'
+    return
+  }
+  prefPush.disabled = false
+  const sub = await currentPushSub()
+  prefPush.checked = !!sub && Notification.permission === 'granted' && !localStorage.getItem('wp-push-off')
+  pushHint.textContent = Notification.permission === 'denied' ? 'Meldingen zijn geblokkeerd. Zet ze aan via Instellingen → Meldingen → Weekplanner.' : ''
+}
+prefPush.addEventListener('change', async () => {
+  if (prefPush.checked) {
+    const permission = await Notification.requestPermission()
+    if (permission !== 'granted') { prefPush.checked = false; toast('Meldingen zijn niet toegestaan.'); syncPushToggle(); return }
+    try { localStorage.removeItem('wp-push-off'); localStorage.removeItem('wp-push-dismissed') } catch {}
+    if (!(await doSubscribePush(false))) prefPush.checked = false
+  } else {
+    const sub = await currentPushSub()
+    if (sub) {
+      const endpoint = sub.endpoint
+      try { await sub.unsubscribe() } catch {}
+      fetch('/api/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: localStorage.getItem('wp-auth'), action: 'unsubscribe', endpoint }) }).catch(() => {})
+    }
+    try { localStorage.setItem('wp-push-off', '1'); localStorage.setItem('wp-push-dismissed', '1') } catch {}
+    toast('Meldingen staan uit op deze telefoon.')
+  }
+})
+$('pref-notify-scope').addEventListener('change', async ev => {
+  const value = ev.target.value
+  const { error } = await dbWrite('upsert', 'settings', { data: { id: 'notify_pref_' + state.currentUser, value } })
+  if (error) { toast('Opslaan mislukt.'); ev.target.value = myNotifyPref; return }
+  myNotifyPref = value
+  toast(value === 'all' ? 'Je krijgt een melding bij alle nieuwe afspraken.' : value === 'mine' ? 'Je krijgt alleen meldingen voor afspraken waar je bij bent.' : 'Geen meldingen meer bij nieuwe afspraken.')
+})
 
 if (pushEnableBtn) pushEnableBtn.addEventListener('click', async () => {
   if (pushPromptEl) pushPromptEl.hidden = true
   const permission = await Notification.requestPermission()
-  if (permission === 'granted') { doSubscribePush() }
+  if (permission === 'granted') { try { localStorage.removeItem('wp-push-off') } catch {}; doSubscribePush(false) }
   else { toast('Notificaties zijn geblokkeerd. Schakel ze in via Instellingen.') }
 })
 if (pushDismissBtn) pushDismissBtn.addEventListener('click', () => {
@@ -1666,6 +1825,8 @@ async function init() {
   loadTodayWeather()
   loadDigestPref()
   loadDigestTime()
+  loadNotifyPref()
+  loadAgendaDone()
   showPushPrompt()
   if (state.currentUser) {
     setWho(state.currentUser)

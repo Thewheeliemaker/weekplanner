@@ -4,45 +4,57 @@ import { checkPassword } from './_lib/auth.js'
 
 const ALLOWED_TABLES = ['entries', 'boodschappen', 'favorieten', 'photos', 'settings']
 
-async function sendPushNotifications(supabase, entry, excludeUser) {
-  const vapidPublic = process.env.VITE_VAPID_PUBLIC_KEY
-  const vapidPrivate = process.env.VAPID_PRIVATE_KEY
-  if (!vapidPublic || !vapidPrivate) return
+// Per-person preference for "new item" pushes, stored as settings rows notify_pref_<Name>:
+//   'all'  = every new item, 'mine' = only items with that person or Algemeen, 'none' = no new-item pushes.
+// No row means 'all' (the behaviour before the setting existed).
+async function loadNotifyPrefs(supabase) {
+  const { data } = await supabase.from('settings').select('id, value').like('id', 'notify_pref_%')
+  const prefs = {}
+  for (const row of data || []) prefs[row.id.slice('notify_pref_'.length)] = row.value
+  return prefs
+}
 
-  webpush.setVapidDetails('mailto:weekplanner@example.com', vapidPublic, vapidPrivate)
+function involves(entry, name) {
+  const who = String(entry.who || '').split(',').map(s => s.trim())
+  return who.includes(name) || who.includes('Algemeen')
+}
 
-  const { data: subs } = await supabase.from('push_subscriptions').select('*')
-  if (!subs || subs.length === 0) return
-
-  const filtered = excludeUser ? subs.filter(s => s.user_name !== excludeUser) : subs
-  if (filtered.length === 0) return
-
-  const DAY_ABBR = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za']
-  const title = entry.title || 'Nieuw item'
-  const who = entry.who || ''
-
+const DAY_ABBR = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za']
+const WEEKDAY_ABBR = { maandag: 'ma', dinsdag: 'di', woensdag: 'wo', donderdag: 'do', vrijdag: 'vr', zaterdag: 'za', zondag: 'zo' }
+function describe(entry) {
   let when = ''
   if (entry.date) {
     const d = new Date(entry.date + 'T12:00:00')
     when = DAY_ABBR[d.getDay()] + ' ' + d.getDate() + '-' + (d.getMonth() + 1)
-  } else if (entry.weekday) {
-    const abbr = { maandag: 'ma', dinsdag: 'di', woensdag: 'wo', donderdag: 'do', vrijdag: 'vr', zaterdag: 'za', zondag: 'zo' }
-    when = 'elke ' + (abbr[entry.weekday] || entry.weekday)
-  }
+  } else if (entry.weekday) when = 'elke ' + (WEEKDAY_ABBR[entry.weekday] || entry.weekday)
   if (entry.time) when += (when ? ' ' : '') + entry.time
-
-  let body = title
-  if (who && who !== 'Algemeen') body += ' (' + who + ')'
+  let body = entry.title || 'Nieuw item'
+  if (entry.who && entry.who !== 'Algemeen') body += ' (' + entry.who.split(',').join(' & ') + ')'
   if (when) body += ' · ' + when
-  const payload = JSON.stringify({ title: 'Nieuw op het bord', body })
+  return body
+}
 
-  for (const sub of filtered) {
+// entries: the newly inserted rows. Each subscriber gets one push about the items relevant to them.
+async function sendPushNotifications(supabase, entries, excludeUser) {
+  const vapidPublic = process.env.VITE_VAPID_PUBLIC_KEY
+  const vapidPrivate = process.env.VAPID_PRIVATE_KEY
+  if (!vapidPublic || !vapidPrivate || entries.length === 0) return
+  webpush.setVapidDetails('mailto:weekplanner@example.com', vapidPublic, vapidPrivate)
+
+  const [{ data: subs }, prefs] = await Promise.all([supabase.from('push_subscriptions').select('*'), loadNotifyPrefs(supabase)])
+  for (const sub of subs || []) {
+    if (excludeUser && sub.user_name === excludeUser) continue
+    const pref = prefs[sub.user_name] || 'all'
+    if (pref === 'none') continue
+    const relevant = pref === 'mine' ? entries.filter(e => involves(e, sub.user_name)) : entries
+    if (relevant.length === 0) continue
+    const body = relevant.length === 1 ? describe(relevant[0])
+      : relevant.length + ' nieuwe items' + (() => { const w = [...new Set(relevant.flatMap(e => String(e.who || '').split(',')).map(x => x.trim()).filter(x => x && x !== 'Algemeen'))]; return w.length ? ' (' + w.join(', ') + ')' : '' })()
+    const payload = JSON.stringify({ title: 'Nieuw op het bord', body })
     try {
       await webpush.sendNotification(JSON.parse(sub.subscription), payload)
     } catch (err) {
-      if (err.statusCode === 410 || err.statusCode === 404) {
-        await supabase.from('push_subscriptions').delete().eq('id', sub.id)
-      }
+      if (err.statusCode === 410 || err.statusCode === 404) await supabase.from('push_subscriptions').delete().eq('id', sub.id)
     }
   }
 }
@@ -87,15 +99,8 @@ export default async function handler(req, res) {
 
     if (action === 'insert' && table === 'entries' && result.data && !silent) {
       const entries = Array.isArray(result.data) ? result.data : [result.data]
-      if (entries.length === 1) {
-        try { await sendPushNotifications(supabase, entries[0], currentUser) } catch {}
-      } else if (entries.length > 1) {
-        // Bulk insert (e.g. roster scan): one summary notification instead of one per item
-        const who = [...new Set(entries.map(e => e.who).filter(Boolean))].join(', ')
-        const summary = { title: entries.length + ' nieuwe items' }
-        if (who && who !== 'Algemeen') summary.who = who
-        try { await sendPushNotifications(supabase, summary, currentUser) } catch {}
-      }
+      // One push per subscriber; bulk inserts (roster scan) become a single summary
+      try { await sendPushNotifications(supabase, entries, currentUser) } catch {}
     }
 
     res.status(200).json({ ok: true, data: result.data })

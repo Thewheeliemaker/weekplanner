@@ -514,3 +514,29 @@ body.sheet-open { overflow: hidden; }
 .scan-label em { font-style: normal; color: var(--warn); margin-left: 4px; }
 .scan-entry.is-dup { opacity: 0.7; }
 .scan-problems { margin: 8px 0 0; padding: 8px 12px 8px 26px; background: var(--warn-soft); border-radius: 10px; font-size: 0.86rem; }
+
+/* ── board: segmented switch + work-agenda to-do list ── */
+.seg { display: flex; gap: 4px; background: var(--surface-2); border-radius: 12px; padding: 4px; margin-bottom: 14px; }
+.seg-btn { flex: 1; border: none; background: transparent; border-radius: 9px; padding: 8px 10px; font-size: 0.92rem; color: var(--ink-soft); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.seg-btn.is-active { background: var(--surface); color: var(--ink); font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+.seg-count { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--surface-3); color: var(--ink); font-size: 0.74rem; display: inline-flex; align-items: center; justify-content: center; }
+.seg-count.is-alert { background: #e24b4a; color: #fff; }
+.todo-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.todo-item { display: flex; align-items: center; gap: 12px; background: var(--pc-bg); color: var(--pc-ink); border-radius: 12px; padding: 10px 12px; transition: opacity .2s, transform .2s; }
+.todo-item.is-leaving { opacity: 0; transform: translateX(16px); }
+.todo-date { flex: none; width: 46px; text-align: center; line-height: 1.05; }
+.todo-date b { display: block; font-size: 1.3rem; font-weight: 600; }
+.todo-date span { font-size: 0.72rem; text-transform: lowercase; }
+.todo-date.is-recurring b { font-size: 1rem; }
+.todo-body { flex: 1; min-width: 0; }
+.todo-title { font-size: 1rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
+.todo-when { font-size: 0.82rem; opacity: 0.9; }
+.todo-note { font-size: 0.8rem; opacity: 0.75; margin-top: 1px; }
+.todo-check { flex: none; display: inline-flex; align-items: center; gap: 6px; border: none; background: var(--surface); color: var(--ink); border-radius: 999px; padding: 7px 12px; font-size: 0.84rem; cursor: pointer; }
+.todo-check svg { width: 15px; height: 15px; color: var(--good); }
+.todo-new { display: inline-block; font-size: 0.7rem; background: #e24b4a; color: #fff; border-radius: 6px; padding: 0 5px; margin-left: 6px; vertical-align: 2px; }
+.todo-empty { display: flex; gap: 12px; align-items: center; background: var(--good-soft); color: var(--ink); border-radius: 12px; padding: 14px; margin-top: 12px; }
+.todo-empty svg { width: 26px; height: 26px; color: var(--good); flex: none; }
+.todo-empty strong { display: block; font-weight: 500; }
+.todo-empty span { font-size: 0.86rem; color: var(--ink-soft); }
+.setting-hint { margin: -4px 0 0; font-size: 0.8rem; color: var(--ink-soft); }
