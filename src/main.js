@@ -416,13 +416,21 @@ function renderTasks() {
 // Done-state per person in settings agenda_done_<Name> as { entryId: signature }. If date/time changes
 // after ticking it off, the signature no longer matches and the item comes back as "gewijzigd".
 let agendaDone = {}
+// Whether this person uses the list at all (settings agenda_enabled_<Name>, off by default).
+// Off: no "Mijn werkagenda" switch on the board and no count in the badges.
+let agendaEnabled = false
 function agendaSig(e) { return [e.type, e.date || '', e.endDate || '', e.weekday || '', e.time || ''].join('|') }
 async function loadAgendaDone() {
   if (!state.currentUser) return
   try {
-    const { data } = await supabase.from('settings').select('value').eq('id', 'agenda_done_' + state.currentUser).maybeSingle()
-    agendaDone = data && data.value && typeof data.value === 'object' && !Array.isArray(data.value) ? data.value : {}
+    const me = state.currentUser
+    const { data } = await supabase.from('settings').select('id, value').in('id', ['agenda_done_' + me, 'agenda_enabled_' + me])
+    const done = (data || []).find(r => r.id === 'agenda_done_' + me)
+    const enabled = (data || []).find(r => r.id === 'agenda_enabled_' + me)
+    agendaDone = done && done.value && typeof done.value === 'object' && !Array.isArray(done.value) ? done.value : {}
+    agendaEnabled = !!(enabled && enabled.value === true)
   } catch {}
+  $('pref-agenda').checked = agendaEnabled
   renderAgendaTodo()
 }
 async function saveAgendaDone() {
@@ -450,7 +458,7 @@ function isStoredHoliday(e) {
 }
 function agendaItems() {
   const me = state.currentUser
-  if (!me) return []
+  if (!me || !agendaEnabled) return []
   const today = ymd(new Date())
   return state.entries.filter(e => {
     const who = whoList(e)
@@ -469,6 +477,9 @@ function agendaItems() {
 function renderAgendaTodo() {
   const list = $('agendaTodo'); if (!list) return
   const items = agendaItems(), today = ymd(new Date())
+  // Without the list there is nothing to switch to: hide the switch and stay on the physical board
+  document.querySelector('#view-board .seg').hidden = !agendaEnabled
+  if (!agendaEnabled && !$('agendaPane').hidden) showBoardPane('board')
   const cnt = $('segAgendaCount'); cnt.textContent = items.length; cnt.hidden = items.length === 0
   $('agendaEmpty').hidden = items.length > 0
   $('clearAgenda').hidden = items.length < 2
@@ -495,6 +506,14 @@ async function markAgendaDone(ids, el) {
   if (!(await saveAgendaDone())) { agendaDone = before; renderAgendaTodo(); return }
   undoSnack(ids.length === 1 ? 'Gemarkeerd als geblokt.' : ids.length + ' afspraken gemarkeerd als geblokt.', async () => { agendaDone = before; renderAgendaTodo(); await saveAgendaDone() })
 }
+$('pref-agenda').addEventListener('change', async ev => {
+  const value = ev.target.checked
+  const { error } = await dbWrite('upsert', 'settings', { data: { id: 'agenda_enabled_' + state.currentUser, value } })
+  if (error) { toast('Opslaan mislukt.'); ev.target.checked = agendaEnabled; return }
+  agendaEnabled = value
+  renderAgendaTodo()
+  toast(value ? '"Mijn werkagenda" staat aan op het Bord.' : '"Mijn werkagenda" is uitgezet.')
+})
 $('clearAgenda').addEventListener('click', () => { const ids = agendaItems().map(x => x.e.id); if (ids.length) markAgendaDone(ids) })
 
 // Switch on the board screen: physical board / my work agenda (remembered per device)
